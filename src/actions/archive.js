@@ -12,20 +12,20 @@ A.restoreTask = el => {
     mutate(() => {
       t.archived = false;
       t.archivedAt = null;
-      logAct('restored', t);
+      logAct('restauró', t);
     })
   )
-    toast(`Restored “${t.title}”`, { action: 'Open', onAction: () => A.openTask({ dataset: { id: t.id } }) });
+    toast(`Se restauró “${t.title}”`, { action: 'Abrir', onAction: () => A.openTask({ dataset: { id: t.id } }) });
 };
 A.purgeTask = el => {
   const t = task(el.dataset.id);
   confirmDlg({
-    title: 'Delete task permanently?',
-    body: `<b>${esc(t.title)}</b>, its subtasks, comments, and attachments will be deleted for everyone. This can't be undone.`,
-    ok: 'Delete permanently',
+    title: '¿Eliminar tarea permanentemente?',
+    body: `<b>${esc(t.title)}</b>, sus subtareas y comentarios se eliminarán de forma definitiva. Esta acción no se puede deshacer.`,
+    ok: 'Eliminar permanentemente',
     danger: true,
     run: () => {
-      if (mutate(() => deleteTasks([t.id]))) toast(`Deleted “${t.title}”`);
+      if (mutate(() => deleteTasks([t.id]))) toast(`Se eliminó “${t.title}”`);
     },
   });
 };

@@ -1,7 +1,7 @@
 /* ---------------- CONTEXT MENUS ---------------- */
 import { ic } from '../core/icons.js';
 import { ST } from '../core/constants.js';
-import { D, mem, proj, task, visibleProjects } from '../core/store.js';
+import { D, SINGLE_USER, mem, proj, task, visibleProjects } from '../core/store.js';
 
 export function ctxMenu(p) {
   const I = (act, icon, label, extra = '', r = '') =>
@@ -11,48 +11,48 @@ export function ctxMenu(p) {
     const t = task(p.id);
     if (!t) return '';
     return (
-      I('openTask', 'panel-right-open', 'Open') +
-      I('editTask', 'pencil', 'Edit', '', 'E') +
-      I('toggleDone', t.status === 'done' ? 'rotate-ccw' : 'circle-check', t.status === 'done' ? 'Reopen' : 'Mark complete') +
+      I('openTask', 'panel-right-open', 'Abrir') +
+      I('editTask', 'pencil', 'Editar', '', 'E') +
+      I('toggleDone', t.status === 'done' ? 'rotate-ccw' : 'circle-check', t.status === 'done' ? 'Reabrir' : 'Marcar como hecha') +
       sep +
-      I('ctxStatus', 'circle-dot', 'Status…') +
-      I('ctxAssign', 'user', 'Assign to…') +
-      I('ctxPrio', 'signal-high', 'Priority…') +
-      I('ctxMove', 'folder-input', 'Move to project…') +
+      I('ctxStatus', 'circle-dot', 'Estado…') +
+      (SINGLE_USER ? '' : I('ctxAssign', 'user', 'Asignar a…')) +
+      I('ctxPrio', 'signal-high', 'Prioridad…') +
+      I('ctxMove', 'folder-input', 'Mover a proyecto…') +
       sep +
-      I('toggleFavTask', 'star', t.fav ? 'Remove from favorites' : 'Add to favorites') +
-      I('copyLink', 'link', 'Copy link') +
-      I('dupTask', 'copy', 'Duplicate') +
-      I('archiveTask', 'archive', 'Archive') +
+      I('toggleFavTask', 'star', t.fav ? 'Quitar de favoritos' : 'Añadir a favoritos') +
+      I('copyLink', 'link', 'Copiar enlace') +
+      I('dupTask', 'copy', 'Duplicar') +
+      I('archiveTask', 'archive', 'Archivar') +
       sep +
-      I('delTask', 'trash-2', 'Delete', 'danger', 'Del')
+      I('delTask', 'trash-2', 'Eliminar', 'danger', 'Supr')
     );
   }
   if (p.ctx === 'project') {
     const pr = proj(p.id);
     if (!pr) return '';
     return (
-      I('openProject', 'arrow-up-right', 'Open') +
-      I('toggleFavProj', 'star', pr.fav ? 'Remove from favorites' : 'Add to favorites') +
-      I('editProject', 'pencil', 'Rename & edit') +
-      I('share', 'share-2', 'Share') +
-      I('copyLink', 'link', 'Copy link') +
-      I('dupProject', 'copy', 'Duplicate') +
+      I('openProject', 'arrow-up-right', 'Abrir') +
+      I('toggleFavProj', 'star', pr.fav ? 'Quitar de favoritos' : 'Añadir a favoritos') +
+      I('editProject', 'pencil', 'Renombrar y editar') +
+      (SINGLE_USER ? '' : I('share', 'share-2', 'Compartir')) +
+      I('copyLink', 'link', 'Copiar enlace') +
+      I('dupProject', 'copy', 'Duplicar') +
       sep +
-      (visibleProjects().indexOf(pr) > 0 ? I('projUp', 'arrow-up', 'Move up in sidebar') : '') +
-      (visibleProjects().indexOf(pr) < visibleProjects().length - 1 ? I('projDown', 'arrow-down', 'Move down in sidebar') : '') +
+      (visibleProjects().indexOf(pr) > 0 ? I('projUp', 'arrow-up', 'Subir en la barra lateral') : '') +
+      (visibleProjects().indexOf(pr) < visibleProjects().length - 1 ? I('projDown', 'arrow-down', 'Bajar en la barra lateral') : '') +
       sep +
-      I('archiveProject', 'archive', pr.status === 'complete' ? 'Archive' : 'Archive project') +
-      I('delProject', 'trash-2', 'Delete project', 'danger')
+      I('archiveProject', 'archive', 'Archivar proyecto') +
+      I('delProject', 'trash-2', 'Eliminar proyecto', 'danger')
     );
   }
   if (p.ctx === 'column') {
     return (
       `<div class="mh">${ST[p.id].name}</div>` +
-      I('colAdd', 'plus', 'Add task') +
-      I('colCollapse', 'fold-horizontal', 'Collapse column') +
-      (p.id !== 'done' ? I('colDoneAll', 'check-check', 'Mark all as done') : I('colArchive', 'archive', 'Archive completed')) +
-      I('colSortPrio', 'arrow-down-wide-narrow', 'Sort by priority')
+      I('colAdd', 'plus', 'Añadir tarea') +
+      I('colCollapse', 'fold-horizontal', 'Contraer columna') +
+      (p.id !== 'done' ? I('colDoneAll', 'check-check', 'Marcar todas como hechas') : I('colArchive', 'archive', 'Archivar completadas')) +
+      I('colSortPrio', 'arrow-down-wide-narrow', 'Ordenar por prioridad')
     );
   }
   if (p.ctx === 'member') {
@@ -60,29 +60,29 @@ export function ctxMenu(p) {
     if (!m) return '';
     const canRm = m.role !== 'Owner' && m.id !== D().me;
     return (
-      I('viewProfile', 'user', 'View profile') +
-      I('assignToMember', 'plus', 'Assign a task') +
-      I('copyEmail', 'mail', 'Copy email') +
+      I('viewProfile', 'user', 'Ver perfil') +
+      I('assignToMember', 'plus', 'Asignar tarea') +
+      I('copyEmail', 'mail', 'Copiar correo') +
       (canRm
-        ? I('ctxRole', 'shield', 'Change role…') +
-          (m.status === 'invited' ? I('resendInvite', 'send', 'Resend invite') : '') +
+        ? I('ctxRole', 'shield', 'Cambiar rol…') +
+          (m.status === 'invited' ? I('resendInvite', 'send', 'Reenviar invitación') : '') +
           sep +
-          I('removeMember', 'user-minus', 'Remove from workspace', 'danger')
+          I('removeMember', 'user-minus', 'Quitar del espacio', 'danger')
         : '')
     );
   }
   if (p.ctx === 'file') {
     return (
-      I('previewFile', 'eye', 'Preview') +
-      I('renameFile', 'pencil', 'Rename') +
-      I('copyLink', 'link', 'Copy link') +
-      I('dupFile', 'copy', 'Duplicate') +
+      I('previewFile', 'eye', 'Vista previa') +
+      I('renameFile', 'pencil', 'Renombrar') +
+      I('copyLink', 'link', 'Copiar enlace') +
+      I('dupFile', 'copy', 'Duplicar') +
       sep +
-      I('delFile', 'trash-2', 'Delete', 'danger')
+      I('delFile', 'trash-2', 'Eliminar', 'danger')
     );
   }
   if (p.ctx === 'savedview') {
-    return `<button class="mi" data-a="renameView" data-id="${p.vid}">${ic('pencil', 15)}Rename view</button><button class="mi danger" data-a="delView" data-id="${p.vid}">${ic('trash-2', 15)}Delete view</button>`;
+    return `<button class="mi" data-a="renameView" data-id="${p.vid}">${ic('pencil', 15)}Renombrar vista</button><button class="mi danger" data-a="delView" data-id="${p.vid}">${ic('trash-2', 15)}Eliminar vista</button>`;
   }
   return '';
 }

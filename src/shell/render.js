@@ -2,7 +2,7 @@
    SHELL: render loop, router, sidebar, topbar, skeletons, filter engine
    ===================================================================== */
 import { $, $$ } from '../core/utils.js';
-import { D, S, mem, proj, team } from '../core/store.js';
+import { D, S, defaultProjTab, mem, proj, team } from '../core/store.js';
 import { applyPrefs } from '../core/theme.js';
 import { enhanceSelects, selectMenu } from '../ui/select.js';
 import { renderShell } from './layout.js';
@@ -13,26 +13,26 @@ import { placePop } from '../overlays/popovers.js';
 import { renderAuth } from '../pages/auth.js';
 
 export const ROUTE_NAMES = {
-  home: 'Home',
-  inbox: 'Inbox',
-  mytasks: 'My Tasks',
-  favorites: 'Favorites',
-  notifications: 'Notifications',
-  search: 'Search',
-  overview: 'Overview',
-  projects: 'Projects',
-  tasks: 'Tasks',
-  calendar: 'Calendar',
-  timeline: 'Timeline',
-  members: 'Members',
-  member: 'Member',
-  teams: 'Teams',
-  team: 'Team',
-  activity: 'Activity',
-  settings: 'Settings',
-  system: 'Design system',
-  states: 'System states',
-  archive: 'Archive',
+  home: 'Inicio',
+  inbox: 'Bandeja',
+  mytasks: 'Mis tareas',
+  favorites: 'Favoritos',
+  notifications: 'Notificaciones',
+  search: 'Buscar',
+  overview: 'Resumen general',
+  projects: 'Proyectos',
+  tasks: 'Tareas',
+  calendar: 'Calendario',
+  timeline: 'Cronograma',
+  members: 'Miembros',
+  member: 'Miembro',
+  teams: 'Equipos',
+  team: 'Equipo',
+  activity: 'Actividad',
+  settings: 'Ajustes',
+  system: 'Sistema de diseño',
+  states: 'Estados del sistema',
+  archive: 'Archivo',
 };
 export const ROUTE_ICONS = {
   home: 'house',
@@ -56,7 +56,7 @@ export const ROUTE_ICONS = {
 };
 
 export function go(route, params = {}, opt = {}) {
-  if (route === 'project' && !params.tab) params.tab = 'board';
+  if (route === 'project' && !params.tab) params.tab = defaultProjTab(proj(params.id));
   if (!opt.back) S.ui.history.push({ route: S.ui.route, params: S.ui.params });
   const same = S.ui.route === route && JSON.stringify(S.ui.params) === JSON.stringify(params);
   S.ui.route = route;
@@ -108,8 +108,8 @@ export function tryFocus(key) {
 export function pageTitle() {
   const u = S.ui;
   if (u.auth) return 'Gr8r Studio';
-  let t = ROUTE_NAMES[u.route] || 'Not found';
-  if (u.route === 'project' && proj(u.params.id)) t = `${(PTABS.find(x => x[0] === u.params.tab) || [0, 'Saved view'])[1]} · ${proj(u.params.id).name}`;
+  let t = ROUTE_NAMES[u.route] || 'No encontrado';
+  if (u.route === 'project' && proj(u.params.id)) t = `${(PTABS.find(x => x[0] === u.params.tab) || [0, 'Vista guardada'])[1]} · ${proj(u.params.id).name}`;
   if (u.route === 'member' && mem(u.params.id)) t = mem(u.params.id).name;
   if (u.route === 'team' && team(u.params.id)) t = team(u.params.id).name;
   return `${t} · ${D().ws.name}`;

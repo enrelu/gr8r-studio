@@ -1,5 +1,5 @@
 /* =====================================================================
-   QUIRE — core: utils, icons, seed data, store, render loop, events
+   CORE — utils & Spanish date helpers
    ===================================================================== */
 // Web fonts load without blocking first paint (the link starts as media=print).
 document.querySelectorAll('link[data-font]').forEach(l => {
@@ -37,14 +37,14 @@ export const addD = (d, n) => {
 };
 export const dOff = n => iso(addD(TODAY, n));
 export const diffD = (a, b) => Math.round((sod(a) - sod(b)) / DAY);
-export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const MONL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-export const WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const MON = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+export const MONL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+export const WD = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+export const WDL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 /* Set from preferences on every render (core/theme.js), so utils never depends on the store. */
-export let dateFormat = 'MMM d';
+export let dateFormat = 'd/M';
 export function setDateFormat(f) {
-  dateFormat = f || 'MMM d';
+  dateFormat = f || 'd/M';
 }
 export function fmtDate(s, long) {
   const d = typeof s === 'string' ? parse(s) : s;
@@ -53,32 +53,32 @@ export function fmtDate(s, long) {
   if (fmt === 'd/M') return `${d.getDate()}/${d.getMonth() + 1}${long ? '/' + d.getFullYear() : ''}`;
   if (fmt === 'M/d') return `${d.getMonth() + 1}/${d.getDate()}${long ? '/' + d.getFullYear() : ''}`;
   if (fmt === 'yyyy-MM-dd') return iso(d);
-  return `${MON[d.getMonth()]} ${d.getDate()}${long || d.getFullYear() !== TODAY.getFullYear() ? ', ' + d.getFullYear() : ''}`;
+  return `${d.getDate()} ${MON[d.getMonth()]}${long || d.getFullYear() !== TODAY.getFullYear() ? ' ' + d.getFullYear() : ''}`;
 }
 export function relDate(s) {
   if (!s) return '';
   const n = diffD(parse(s), TODAY);
-  if (n === 0) return 'Today';
-  if (n === 1) return 'Tomorrow';
-  if (n === -1) return 'Yesterday';
-  if (n > 1 && n < 7) return WD[parse(s).getDay()];
+  if (n === 0) return 'Hoy';
+  if (n === 1) return 'Mañana';
+  if (n === -1) return 'Ayer';
+  if (n > 1 && n < 7) return WDL[parse(s).getDay()];
   return fmtDate(s);
 }
 export function ago(ts) {
   const m = Math.round((Date.now() - ts) / 6e4);
-  if (m < 1) return 'just now';
-  if (m < 60) return m + 'm ago';
+  if (m < 1) return 'ahora mismo';
+  if (m < 60) return `hace ${m}m`;
   const h = Math.round(m / 60);
-  if (h < 24) return h + 'h ago';
+  if (h < 24) return `hace ${h}h`;
   const d = Math.round(h / 24);
-  if (d < 7) return d + 'd ago';
+  if (d < 7) return `hace ${d}d`;
   return fmtDate(iso(new Date(ts)));
 }
 export const minsAgo = m => Date.now() - m * 6e4;
 export function dayBucket(ts) {
   const n = diffD(new Date(ts), TODAY);
-  if (n === 0) return 'Today';
-  if (n === -1) return 'Yesterday';
-  if (n > -7) return 'This week';
-  return 'Earlier';
+  if (n === 0) return 'Hoy';
+  if (n === -1) return 'Ayer';
+  if (n > -7) return 'Esta semana';
+  return 'Anteriores';
 }

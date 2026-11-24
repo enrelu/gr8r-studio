@@ -1,7 +1,7 @@
 /* ---------- drag & drop ---------- */
 import { $, $$, addD, diffD, fmtDate, iso, parse } from '../core/utils.js';
 import { PR, ST } from '../core/constants.js';
-import { D, S, proj, save, task } from '../core/store.js';
+import { D, S, SINGLE_USER, proj, save, task } from '../core/store.js';
 import { mutate, toast } from '../ui/toast.js';
 import { fxSet, render } from '../shell/render.js';
 import { viewOf } from '../shell/view-engine.js';
@@ -49,7 +49,7 @@ document.addEventListener('dragend', () => {
   clearDropMarks();
 });
 document.addEventListener('dragover', e => {
-  const hasFiles = e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const hasFiles = !SINGLE_USER && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
   if (hasFiles) {
     const dz = e.target.closest?.('[data-dropzone],[data-dropzone-task],.drawer');
     if (dz) {
@@ -116,7 +116,7 @@ document.addEventListener('dragleave', e => {
 });
 document.addEventListener('drop', e => {
   const files = e.dataTransfer?.files;
-  if (files && files.length && !DRAG) {
+  if (!SINGLE_USER && files && files.length && !DRAG) {
     const dz = e.target.closest?.('[data-dropzone],[data-dropzone-task],.drawer');
     if (!dz) return;
     e.preventDefault();
@@ -151,7 +151,7 @@ document.addEventListener('drop', e => {
       t.order = order;
       if (moved) applyPatch(t, { status: d.col });
     });
-    if (moved) toast(`Moved “${t.title}” to ${ST[d.col].name}`, { ms: 2200 });
+    if (moved) toast(`Movida “${t.title}” a ${ST[d.col].name}`, { ms: 2200 });
   } else if (d.type === 'row' && d.target) {
     const t = task(d.id),
       tg = task(d.target);
@@ -180,14 +180,14 @@ document.addEventListener('drop', e => {
         switched = true;
       }
     });
-    if (switched) toast('Sorted manually to keep your order', { kind: 'info', ms: 2200 });
+    if (switched) toast('Orden manual activado para conservar tu orden', { kind: 'info', ms: 2200 });
   } else if (d.type === 'cal' && d.day) {
     const t = task(d.id);
     if (t.due === d.day) return;
     const len = t.start && t.due ? diffD(parse(t.due), parse(t.start)) : null;
     fxSet({ moved: t.id });
     updateTask(t.id, { due: d.day, ...(len != null ? { start: iso(addD(parse(d.day), -len)) } : {}) });
-    toast(`Rescheduled “${t.title}” to ${fmtDate(d.day)}`, { ms: 2200 });
+    toast(`Reprogramada “${t.title}” al ${fmtDate(d.day)}`, { ms: 2200 });
   } else if (d.type === 'proj' && d.before && d.before !== d.id) {
     const o = D().projOrder.filter(x => x !== d.id);
     o.splice(o.indexOf(d.before), 0, d.id);
@@ -262,7 +262,7 @@ document.addEventListener('pointerdown', e => {
       return;
     }
     updateTask(t.id, { due: iso(addD(parse(t.due), days)), start: t.start ? iso(addD(parse(t.start), days)) : null });
-    toast(`Moved “${t.title}” ${Math.abs(days)} day${Math.abs(days) > 1 ? 's' : ''} ${days > 0 ? 'later' : 'earlier'}`, { ms: 2200 });
+    toast(`Movida “${t.title}” ${Math.abs(days)} día${Math.abs(days) > 1 ? 's' : ''} ${days > 0 ? 'después' : 'antes'}`, { ms: 2200 });
   };
   addEventListener('pointermove', mv);
   addEventListener('pointerup', up);

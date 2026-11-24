@@ -4,7 +4,24 @@
 import { $, $$, TODAY, addD, dOff, esc, fmtDate, iso, parse, uid } from '../core/utils.js';
 import { PR, PSTAT, ST } from '../core/constants.js';
 import { seed } from '../data/seed.js';
-import { D, DEFAULT_PREFS, S, allTasks, canSee, commentsOf, logAct, me, mem, proj, save, task, tasksOf, visibleProjects } from '../core/store.js';
+import {
+  D,
+  DEFAULT_PREFS,
+  S,
+  SINGLE_USER,
+  allTasks,
+  canSee,
+  commentsOf,
+  defaultProjTab,
+  logAct,
+  me,
+  mem,
+  proj,
+  save,
+  task,
+  tasksOf,
+  visibleProjects,
+} from '../core/store.js';
 import { fileType, fsize } from '../ui/helpers.js';
 import { effectiveDark } from '../core/theme.js';
 import { mutate, toast } from '../ui/toast.js';
@@ -31,9 +48,9 @@ export function createTask(f) {
   const t = Object.assign(
     {
       project: p.id,
-      title: 'Untitled',
+      title: 'Sin título',
       status: 'todo',
-      assignee: null,
+      assignee: SINGLE_USER ? D().me : null,
       priority: 'none',
       due: null,
       start: null,
@@ -56,10 +73,10 @@ export function createTask(f) {
   t.key = f.key || nextKey(p);
   D().tasks.push(t);
   fxSet({ added: t.id });
-  logAct('created', t);
+  logAct('creó', t);
   return t;
 }
-export const RECUR_DAYS = { Daily: 1, Weekly: 7, 'Every 2 weeks': 14, Monthly: 30 };
+export const RECUR_DAYS = { Diaria: 1, Semanal: 7, 'Cada 2 semanas': 14, Mensual: 30 };
 export function applyPatch(t, patch) {
   const msgs = [];
   for (const k of Object.keys(patch)) {
@@ -71,9 +88,9 @@ export function applyPatch(t, patch) {
       if (nv === 'done') {
         t.completedAt = Date.now();
         t.prevStatus = old;
-        logAct('completed', t);
+        logAct('completó', t);
         fxSet({ done: t.id });
-      } else logAct('moved', t, `from ${ST[old].name} to ${ST[nv].name}`);
+      } else logAct('movió', t, `de ${ST[old].name} a ${ST[nv].name}`);
       if (nv === 'done' && t.recur && t.due) {
         const nd = iso(addD(parse(t.due), RECUR_DAYS[t.recur] || 7));
         const n = createTask({
@@ -88,21 +105,21 @@ export function applyPatch(t, patch) {
           attachments: [],
         });
         delete n.prevStatus;
-        msgs.push(`Next “${t.title}” scheduled for ${fmtDate(nd)}`);
+        msgs.push(`Siguiente “${t.title}” programada para el ${fmtDate(nd)}`);
       }
-    } else if (k === 'assignee') logAct('assigned', t, nv ? `to ${mem(nv)?.name}` : '(unassigned)');
-    else if (k === 'priority') logAct('changed priority of', t, `to ${PR[nv].name}`);
-    else if (k === 'due') logAct('changed due date of', t, nv ? `to ${fmtDate(nv)}` : '(cleared)');
-    else if (k === 'start') logAct('changed start date of', t, nv ? `to ${fmtDate(nv)}` : '(cleared)');
+    } else if (k === 'assignee') logAct('asignó', t, nv ? `a ${mem(nv)?.name}` : '(sin asignar)');
+    else if (k === 'priority') logAct('cambió prioridad de', t, `a ${PR[nv].name}`);
+    else if (k === 'due') logAct('cambió fecha límite de', t, nv ? `a ${fmtDate(nv)}` : '(eliminada)');
+    else if (k === 'start') logAct('cambió fecha inicio de', t, nv ? `a ${fmtDate(nv)}` : '(eliminada)');
     else if (k === 'project') {
       const p = proj(nv);
       t.key = nextKey(p);
-      logAct('moved', t, `to ${p.name}`);
-    } else if (k === 'labels') logAct('updated labels on', t);
-    else if (k === 'title') logAct('renamed', t, `to “${nv}”`);
-    else if (k === 'recur') logAct('set repeat on', t, nv ? nv.toLowerCase() : 'off');
-    else if (k === 'estimate') logAct('estimated', t, nv || 'none');
-    else if (k === 'deps') logAct('updated dependencies of', t);
+      logAct('movió', t, `al proyecto ${p.name}`);
+    } else if (k === 'labels') logAct('actualizó etiquetas en', t);
+    else if (k === 'title') logAct('renombró', t, `a “${nv}”`);
+    else if (k === 'recur') logAct('configuró repetición en', t, nv ? nv.toLowerCase() : 'desactivada');
+    else if (k === 'estimate') logAct('estimó', t, nv || 'ninguna');
+    else if (k === 'deps') logAct('actualizó dependencias de', t);
     t.updated = Date.now();
   }
   return msgs;
@@ -135,12 +152,12 @@ export function restore(snap) {
   save();
   render();
 }
-export async function copy(text, msg = 'Link copied') {
+export async function copy(text, msg = 'Enlace copiado') {
   try {
     await navigator.clipboard.writeText(text);
     toast(msg);
   } catch {
-    toast("Copy isn't available here — " + text, { kind: 'info', ms: 6000 });
+    toast('No se puede copiar aquí — ' + text, { kind: 'info', ms: 6000 });
   }
 }
 export function loadingBtn(id, ms, fn) {
@@ -168,7 +185,7 @@ A.go = el => {
   const p = {};
   if (el.dataset.id) p.id = el.dataset.id;
   if (el.dataset.tab) p.tab = el.dataset.tab;
-  else if (r === 'project') p.tab = S.prefs.defaultTab || 'board';
+  else if (r === 'project') p.tab = defaultProjTab(proj(p.id));
   if (el.dataset.sec) p.sec = el.dataset.sec;
   S.ui.palette = null;
   const tabOnly = r === 'project' && S.ui.route === 'project' && S.ui.params.id === p.id;
@@ -180,7 +197,7 @@ A.back = () => {
   else go('home');
 };
 A.reload = () => render();
-A.openProject = el => go('project', { id: el.dataset.id, tab: S.prefs.defaultTab || 'board' });
+A.openProject = el => go('project', { id: el.dataset.id, tab: defaultProjTab(proj(el.dataset.id)) });
 A.set = el => {
   const k = el.dataset.k;
   let v = el.dataset.v;
@@ -242,7 +259,7 @@ A.toggleDark = () => {
   save();
   S.ui.palette = null;
   render();
-  toast(effectiveDark() ? 'Dark mode on' : 'Light mode on', { kind: 'info', ms: 1800 });
+  toast(effectiveDark() ? 'Modo oscuro activado' : 'Modo claro activado', { kind: 'info', ms: 1800 });
 };
 A.setPref = el => {
   S.prefs[el.dataset.k] = el.dataset.v;
@@ -284,9 +301,9 @@ A.popPick = el => {
     mutate(() => {
       sb[k] = v;
       logAct(
-        k === 'assignee' ? 'assigned a subtask on' : 'set a subtask due date on',
+        k === 'assignee' ? 'asignó una subtarea en' : 'fijó fecha de subtarea en',
         t,
-        k === 'assignee' ? (v ? `to ${mem(v).name}` : '(unassigned)') : v ? fmtDate(v) : '(cleared)',
+        k === 'assignee' ? (v ? `a ${mem(v).name}` : '(sin asignar)') : v ? fmtDate(v) : '(eliminada)',
       );
     });
     return;
@@ -298,16 +315,16 @@ A.popPick = el => {
       D().activity.unshift({
         id: uid('a'),
         by: D().me,
-        verb: 'changed status of project',
+        verb: 'cambió el estado del proyecto',
         task: null,
         project: pr.id,
         at: Date.now(),
-        extra: 'to ' + PSTAT[v].name,
+        extra: 'a ' + PSTAT[v].name,
       });
     });
     S.ui.pop = null;
     render();
-    toast(`${pr.name} marked ${PSTAT[v].name}`);
+    toast(`${pr.name}: ${PSTAT[v].name}`);
     return;
   }
   if (p.type === 'role') {
@@ -317,7 +334,7 @@ A.popPick = el => {
     });
     S.ui.pop = null;
     render();
-    toast(`${m.name} is now ${v === 'Admin' ? 'an' : 'a'} ${v}`);
+    toast(`${m.name} ahora es ${v}`);
     return;
   }
   const field = { status: 'status', priority: 'priority', assignee: 'assignee', project: 'project', recur: 'recur', estimate: 'estimate', date: p.field }[
@@ -325,7 +342,7 @@ A.popPick = el => {
   ];
   if (!field) return;
   if (field === 'assignee' && !v) v = null;
-  if (field === 'recur' && v === 'Does not repeat') v = null;
+  if (field === 'recur' && v === 'No se repite') v = null;
   if ((field === 'estimate' || field === 'due' || field === 'start') && !v) v = null;
   S.ui.pop = null;
   const patch = { [field]: v };
@@ -376,7 +393,7 @@ A.openTask = el => {
   const id = el.dataset.id;
   if (!task(id)) return;
   if (!canSee(proj(task(id).project))) {
-    toast("You don't have access to that task", { kind: 'err' });
+    toast('No tienes acceso a esta tarea', { kind: 'err' });
     return;
   }
   if (!S.ui.drawer || !document.activeElement?.closest?.('.drawer')) S.ui.drawerOpener = el.isConnected ? focusKey(el) : S.ui.drawerOpener;
@@ -416,7 +433,7 @@ A._projMove = (el, d) => {
   S.ui.pop = null;
   save();
   render();
-  toast(`Moved ${proj(el.dataset.id).name} ${d < 0 ? 'up' : 'down'}`, { ms: 1600 });
+  toast(`${proj(el.dataset.id).name} movido ${d < 0 ? 'arriba' : 'abajo'}`, { ms: 1600 });
 };
 A.toggleDrawerFull = () => {
   S.ui.drawerFull = !S.ui.drawerFull;
@@ -428,7 +445,7 @@ A.toggleDone = el => {
   const wasDone = t.status === 'done';
   S.ui.pop = null;
   updateTask(t.id, { status: wasDone ? (t.prevStatus && t.prevStatus !== 'done' ? t.prevStatus : 'todo') : 'done' });
-  if (!wasDone && !S.ui.offline) toast(`Completed “${t.title}”`, { action: 'Undo', onAction: () => updateTask(t.id, { status: t.prevStatus || 'todo' }) });
+  if (!wasDone && !S.ui.offline) toast(`Completada “${t.title}”`, { action: 'Deshacer', onAction: () => updateTask(t.id, { status: t.prevStatus || 'todo' }) });
 };
 A.toggleFavTask = el => {
   const t = task(el.dataset.id);
@@ -436,7 +453,7 @@ A.toggleFavTask = el => {
     t.fav = !t.fav;
   });
   S.ui.pop = null;
-  toast(t.fav ? 'Added to favorites' : 'Removed from favorites', { ms: 1800 });
+  toast(t.fav ? 'Añadida a favoritos' : 'Quitada de favoritos', { ms: 1800 });
   render();
 };
 A.toggleFavProj = el => {
@@ -446,7 +463,7 @@ A.toggleFavProj = el => {
   });
   S.ui.pop = null;
   render();
-  toast(p.fav ? `Added ${p.name} to favorites` : 'Removed from favorites', { ms: 1800 });
+  toast(p.fav ? `${p.name} añadido a favoritos` : 'Quitado de favoritos', { ms: 1800 });
 };
 A.copyLink = el => {
   S.ui.pop = null;
@@ -462,23 +479,23 @@ A.copyLink = el => {
           : d.id && proj(d.id)
             ? `project/${proj(d.id).key.toLowerCase()}`
             : '';
-  copy(`https://gr8rstudio.com/${D().ws.url}/${path}`);
+  copy(`${location.origin}/#/${path}`);
 };
-A.copyText = el => copy(el.dataset.text, 'Copied to clipboard');
+A.copyText = el => copy(el.dataset.text, 'Copiado al portapapeles');
 A.copyEmail = el => {
   S.ui.pop = null;
   render();
-  copy(mem(el.dataset.id).email, 'Email copied');
+  copy(mem(el.dataset.id).email, 'Correo copiado');
 };
 A.dupTask = el => {
   const t = task(el.dataset.id);
   S.ui.pop = null;
   let n;
   mutate(() => {
-    n = createTask({ ...JSON.parse(JSON.stringify(t)), id: uid('t'), key: undefined, title: t.title + ' (copy)', created: Date.now(), fav: false });
+    n = createTask({ ...JSON.parse(JSON.stringify(t)), id: uid('t'), key: undefined, title: t.title + ' (copia)', created: Date.now(), fav: false });
     n.key = nextKey(proj(n.project));
   });
-  toast('Task duplicated', { action: 'Open', onAction: () => A.openTask({ dataset: { id: n.id } }) });
+  toast('Tarea duplicada', { action: 'Abrir', onAction: () => A.openTask({ dataset: { id: n.id } }) });
 };
 A.archiveTask = el => {
   const t = task(el.dataset.id);
@@ -488,9 +505,9 @@ A.archiveTask = el => {
   mutate(() => {
     t.archived = true;
     t.archivedAt = Date.now();
-    logAct('archived', t);
+    logAct('archivó', t);
   });
-  toast(`Archived “${t.title}”`, { action: 'Undo', onAction: () => restore(snap) });
+  toast(`Archivada “${t.title}”`, { action: 'Deshacer', onAction: () => restore(snap) });
 };
 export function deleteTasks(ids) {
   const set = new Set(ids);
@@ -506,13 +523,13 @@ A.delTask = el => {
   if (!t) return;
   const run = () => {
     const snap = snapshot();
-    if (mutate(() => deleteTasks([t.id]))) toast(`Deleted “${t.title}”`, { action: 'Undo', onAction: () => restore(snap) });
+    if (mutate(() => deleteTasks([t.id]))) toast(`Eliminada “${t.title}”`, { action: 'Deshacer', onAction: () => restore(snap) });
   };
   if (S.prefs.confirmDel === false && !el.dataset.demo) return run();
   confirmDlg({
-    title: 'Delete task?',
-    body: `<b>${esc(t.title)}</b>${t.subtasks.length ? `, its ${t.subtasks.length} subtasks,` : ''} and ${commentsOf(t.id).length} comment${commentsOf(t.id).length === 1 ? '' : 's'} will be permanently deleted.`,
-    ok: 'Delete task',
+    title: '¿Eliminar tarea?',
+    body: `<b>${esc(t.title)}</b>${t.subtasks.length ? `, sus ${t.subtasks.length} subtareas` : ''} y ${commentsOf(t.id).length} nota${commentsOf(t.id).length === 1 ? '' : 's'} se eliminarán de forma permanente.`,
+    ok: 'Eliminar tarea',
     danger: true,
     run,
   });
@@ -552,7 +569,7 @@ A.newTask = el => {
   S.ui.form = {
     title: '',
     desc: '',
-    project: canSee(proj(pid)) ? pid : 'p1',
+    project: canSee(proj(pid)) ? pid : visibleProjects()[0]?.id || 'p1',
     status: 'todo',
     assignee: d.assignee || D().me,
     priority: 'medium',
@@ -603,7 +620,7 @@ A.submitTask = () => {
   f.title = title;
   f.desc = $('#f-desc')?.value ?? f.desc;
   if (!title) {
-    S.ui.errors.title = 'Give the task a name';
+    S.ui.errors.title = 'Escribe un nombre para la tarea';
     render();
     $('#f-title')?.focus();
     return;
@@ -641,7 +658,7 @@ A.submitTask = () => {
       return;
     S.ui.modals.pop();
     render();
-    toast('Changes saved');
+    toast('Cambios guardados');
     return;
   }
   let t;
@@ -656,13 +673,13 @@ A.submitTask = () => {
     Object.assign(f, { title: '', desc: '', subtasks: [], files: [] });
     render();
     setTimeout(() => $('#f-title')?.focus(), 0);
-    toast(`Created ${t.key}`, { ms: 2000 });
+    toast(`Creada ${t.key}`, { ms: 2000 });
     return;
   }
   S.ui.modals.pop();
   fxSet({ added: t.id });
   render();
-  toast(`Created ${t.key} in ${proj(t.project).name}`, { action: 'Open', onAction: () => A.openTask({ dataset: { id: t.id } }) });
+  toast(`Creada ${t.key} en ${proj(t.project).name}`, { action: 'Abrir', onAction: () => A.openTask({ dataset: { id: t.id } }) });
 };
 
 /* inline composer */
@@ -687,8 +704,8 @@ A.commitComposer = () => {
     return;
   }
   const f = { title: v, ...c.gb };
-  f.project = f.project || projectFromKey(c.ctx) || curProjectId() || 'p1';
-  if (c.ctx === 'mytasks') f.assignee = D().me;
+  f.project = f.project || projectFromKey(c.ctx) || curProjectId() || visibleProjects()[0]?.id || 'p1';
+  if (c.ctx === 'mytasks' || SINGLE_USER) f.assignee = D().me;
   mutate(() => createTask(f));
   setTimeout(() => $('#composer-in')?.focus(), 0);
 };
@@ -751,7 +768,7 @@ A.toggleSub = el => {
   if (!s.done) fxSet({ done: s.id });
   mutate(() => {
     s.done = !s.done;
-    logAct(s.done ? 'completed subtask on' : 'reopened subtask on', t, `“${s.title}”`);
+    logAct(s.done ? 'completó la subtarea en' : 'reabrió la subtarea en', t, `“${s.title}”`);
   });
 };
 A.rmSub = el => {
@@ -768,7 +785,7 @@ KEY.addSub = el => {
   fxSet({ added: nid });
   mutate(() => {
     t.subtasks.push({ id: nid, title: v, done: false });
-    logAct('added subtask to', t, `“${v}”`);
+    logAct('añadió subtarea en', t, `“${v}”`);
   });
   setTimeout(() => $('#d-sub')?.focus(), 0);
 };
@@ -783,9 +800,9 @@ A.rmAttach = el => {
   const f = t.attachments.find(a => a.id === el.dataset.aid);
   mutate(() => {
     t.attachments = t.attachments.filter(a => a.id !== el.dataset.aid);
-    logAct('removed a file from', t);
+    logAct('eliminó un archivo de', t);
   });
-  toast(`Removed ${f.name}`);
+  toast(`Eliminado ${f.name}`);
 };
 A.filePreview = el => {
   const t = task(el.dataset.tid);
@@ -800,7 +817,7 @@ A.previewFile = el => {
 export function handleFiles(files, ctx) {
   if (!files || !files.length) return;
   if (S.ui.offline) {
-    toast("Upload failed — you're offline.", { kind: 'err', action: 'Try again', onAction: () => {} });
+    toast('Error al subir — estás sin conexión.', { kind: 'err', action: 'Reintentar', onAction: () => {} });
     return;
   }
   S.ui.uploads = S.ui.uploads || [];
@@ -821,11 +838,11 @@ export function handleFiles(files, ctx) {
         if (up.task) {
           const t = task(up.task);
           t.attachments.push(rec);
-          logAct('added a file to', t, up.name);
+          logAct('adjuntó un archivo en', t, up.name);
         }
         save();
         render();
-        toast(`Uploaded ${up.name}`);
+        toast(`Subido ${up.name}`);
       }
     }, 220);
   });
@@ -840,11 +857,13 @@ IN.uploadFiles = el => {
 IN.draft = el => {
   const id = el.dataset.id;
   S.ui.drafts[id] = el.value;
-  const before = el.value.slice(0, el.selectionStart);
-  const m = before.match(/(?:^|\s)@([A-Za-z]*)$/);
-  const prev = JSON.stringify(S.ui.mention);
-  S.ui.mention = m ? { tid: id, q: m[1] } : null;
-  if (prev !== JSON.stringify(S.ui.mention)) render();
+  if (!SINGLE_USER) {
+    const before = el.value.slice(0, el.selectionStart);
+    const m = before.match(/(?:^|\s)@([A-Za-z]*)$/);
+    const prev = JSON.stringify(S.ui.mention);
+    S.ui.mention = m ? { tid: id, q: m[1] } : null;
+    if (prev !== JSON.stringify(S.ui.mention)) render();
+  }
   if (el.dataset.autosize != null) autosize(el);
 };
 A.pickMention = el => {
@@ -883,13 +902,13 @@ A.postComment = el => {
   if (
     mutate(() => {
       D().comments.push({ id: uid('c'), task: id, by: D().me, at: Date.now(), text: txt, re: {} });
-      logAct('commented on', t);
+      logAct('añadió una nota en', t);
       S.ui.drafts[id] = '';
       S.ui.mention = null;
       S.ui.drawerTab = 'comments';
     })
   ) {
-    if (S.ui.route === 'inbox') toast('Reply posted');
+    if (S.ui.route === 'inbox') toast('Respuesta enviada');
   }
 };
 A.delComment = el => {
@@ -898,7 +917,7 @@ A.delComment = el => {
   mutate(() => {
     D().comments = D().comments.filter(x => x !== c);
   });
-  toast('Comment deleted', { action: 'Undo', onAction: () => restore(snap) });
+  toast('Nota eliminada', { action: 'Deshacer', onAction: () => restore(snap) });
 };
 A.react = el => {
   const c = D().comments.find(x => x.id === el.dataset.id);
@@ -920,7 +939,7 @@ document.addEventListener('mousedown', e => {
   if (cmd === 'createLink') {
     const s = String(getSelection());
     if (/^https?:\/\//.test(s)) document.execCommand('createLink', false, s);
-    else toast('Select a URL starting with https:// to turn it into a link', { kind: 'info' });
+    else toast('Selecciona una URL que empiece por https:// para convertirla en enlace', { kind: 'info' });
   } else document.execCommand(cmd, false, arg ? `<${arg}>` : null);
   const ed = $('#d-desc');
   if (ed) {
@@ -961,18 +980,18 @@ A.bulkSet = el => {
   let v = el.dataset.v || null;
   const ids = [...S.ui.sel];
   S.ui.pop = null;
-  if (mutate(() => ids.forEach(id => applyPatch(task(id), { [f]: v })))) toast(`Updated ${ids.length} task${ids.length > 1 ? 's' : ''}`);
+  if (mutate(() => ids.forEach(id => applyPatch(task(id), { [f]: v })))) toast(`Actualizadas ${ids.length} tarea${ids.length > 1 ? 's' : ''}`);
 };
 A.bulkDelete = () => {
   const ids = [...S.ui.sel];
   confirmDlg({
-    title: `Delete ${ids.length} task${ids.length > 1 ? 's' : ''}?`,
-    body: 'The selected tasks, their subtasks, and comments will be permanently deleted.',
-    ok: `Delete ${ids.length} task${ids.length > 1 ? 's' : ''}`,
+    title: `¿Eliminar ${ids.length} tarea${ids.length > 1 ? 's' : ''}?`,
+    body: 'Las tareas seleccionadas, sus subtareas y sus notas se eliminarán de forma permanente.',
+    ok: `Eliminar ${ids.length} tarea${ids.length > 1 ? 's' : ''}`,
     danger: true,
     run: () => {
       const snap = snapshot();
-      if (mutate(() => deleteTasks(ids))) toast(`Deleted ${ids.length} tasks`, { action: 'Undo', onAction: () => restore(snap) });
+      if (mutate(() => deleteTasks(ids))) toast(`Eliminadas ${ids.length} tareas`, { action: 'Deshacer', onAction: () => restore(snap) });
     },
   });
 };
@@ -1089,22 +1108,22 @@ A.saveView = el => {
 };
 A.saveViewSubmit = () => {
   const m = S.ui.modals[S.ui.modals.length - 1];
-  const name = $('#sv-name').value.trim() || 'Untitled view';
+  const name = $('#sv-name').value.trim() || 'Vista sin título';
   const type = $('#sv-type').value;
   const sv = { id: uid('v'), project: m.pid, name, type, filters: JSON.parse(JSON.stringify(viewOf('p:' + m.pid).filters)) };
   D().savedViews.push(sv);
   save();
   S.ui.modals.pop();
   go('project', { id: m.pid, tab: 'v:' + sv.id }, { tab: true });
-  toast(`Saved view “${name}”`);
+  toast(`Vista “${name}” guardada`);
 };
 A.renameView = el => {
   const v = D().savedViews.find(x => x.id === el.dataset.id);
   S.ui.pop = null;
   openModal({
     type: 'prompt',
-    title: 'Rename view',
-    label: 'View name',
+    title: 'Renombrar vista',
+    label: 'Nombre de la vista',
     value: v.name,
     run: val => {
       if (val) {
@@ -1121,7 +1140,7 @@ A.delView = el => {
   save();
   if (S.ui.params.tab === 'v:' + v.id) go('project', { id: v.project, tab: 'list' }, { tab: true });
   else render();
-  toast(`Deleted view “${v.name}”`);
+  toast(`Vista “${v.name}” eliminada`);
 };
 
 /* board column menu */
@@ -1153,7 +1172,10 @@ A.colDoneAll = el => {
   }
   const snap = snapshot();
   if (mutate(() => ts.forEach(t => applyPatch(t, { status: 'done' }))))
-    toast(`Marked ${ts.length} tasks as done`, { action: 'Undo', onAction: () => restore(snap) });
+    toast(`${ts.length} tarea${ts.length > 1 ? 's' : ''} marcada${ts.length > 1 ? 's' : ''} como hecha${ts.length > 1 ? 's' : ''}`, {
+      action: 'Deshacer',
+      onAction: () => restore(snap),
+    });
 };
 A.colArchive = () => {
   const ts = colTasks(S.ui.pop.key, 'done');
@@ -1167,7 +1189,7 @@ A.colArchive = () => {
       }),
     )
   )
-    toast(`Archived ${ts.length} completed tasks`, { action: 'Undo', onAction: () => restore(snap) });
+    toast(`Archivadas ${ts.length} tareas completadas`, { action: 'Deshacer', onAction: () => restore(snap) });
 };
 A.colSortPrio = el => {
   const ts = colTasks(S.ui.pop.key, el.dataset.id).sort((a, b) => PR[b.priority].w - PR[a.priority].w);
@@ -1211,7 +1233,7 @@ A.clearProjFilters = () => {
   render();
 };
 A.newProject = () => {
-  S.ui.pform = { name: '', desc: '', icon: 'folder', color: 'indigo', team: me().team, lead: D().me, due: dOff(30), tmpl: 'blank' };
+  S.ui.pform = { name: '', desc: '', icon: 'code', color: 'blue', ptype: 'software', team: me().team, lead: D().me, due: dOff(30), tmpl: 'software' };
   S.ui.errors = {};
   S.ui.pop = null;
   openModal({ type: 'project' });
@@ -1219,7 +1241,17 @@ A.newProject = () => {
 A.editProject = el => {
   const p = proj(el.dataset.id);
   S.ui.pop = null;
-  S.ui.pform = { name: p.name, desc: p.desc, icon: p.icon, color: p.color, team: p.team, lead: p.lead, due: p.due, tmpl: 'blank' };
+  S.ui.pform = {
+    name: p.name,
+    desc: p.desc,
+    icon: p.icon,
+    color: p.color,
+    ptype: p.ptype || 'software',
+    team: p.team,
+    lead: p.lead,
+    due: p.due,
+    tmpl: 'blank',
+  };
   S.ui.errors = {};
   openModal({ type: 'project', edit: p.id });
 };
@@ -1234,7 +1266,11 @@ A.pformSet = el => {
   S.ui.pform[el.dataset.f] = el.dataset.v;
   if (el.dataset.f === 'tmpl') {
     const t = TEMPLATES.find(x => x.id === el.dataset.v);
-    if (t && S.ui.pform.icon === 'folder') S.ui.pform.icon = t.icon === 'file' ? 'folder' : t.icon;
+    if (t) {
+      S.ui.pform.ptype = t.ptype || 'software';
+      S.ui.pform.icon = t.icon === 'file' ? 'folder' : t.icon;
+      S.ui.pform.color = t.ptype === 'cyber' ? 'teal' : 'blue';
+    }
   }
   render();
 };
@@ -1256,10 +1292,13 @@ export function makeKey(name) {
   return k;
 }
 export function createProject(f, tmplId) {
+  const tm = TEMPLATES.find(t => t.id === tmplId);
+  const ptype = f.ptype || tm?.ptype || 'software';
   const p = {
     id: uid('p'),
     key: makeKey(f.name),
     name: f.name,
+    ptype,
     icon: f.icon,
     color: f.color,
     status: 'planning',
@@ -1269,20 +1308,19 @@ export function createProject(f, tmplId) {
     start: dOff(0),
     fav: false,
     members: [...new Set([D().me, f.lead])],
-    desc: f.desc || 'No description yet.',
-    milestones: [],
+    desc: f.desc || 'Sin descripción todavía.',
+    milestones: (tm?.milestones || []).map(ms => ({ id: uid('ms'), name: ms.name, date: dOff(ms.offset), done: false })),
     last: 0,
   };
   D().projects.push(p);
   D().projOrder.unshift(p.id);
-  D().activity.unshift({ id: uid('a'), by: D().me, verb: 'created project', task: null, project: p.id, at: Date.now(), extra: '' });
-  const tm = TEMPLATES.find(t => t.id === tmplId);
+  D().activity.unshift({ id: uid('a'), by: D().me, verb: 'creó el proyecto', task: null, project: p.id, at: Date.now(), extra: '' });
   (tm?.tasks || []).forEach((title, i) =>
     createTask({
       project: p.id,
       title,
       status: i === 0 ? 'todo' : 'backlog',
-      assignee: i === 0 ? D().me : null,
+      assignee: SINGLE_USER || i === 0 ? D().me : null,
       priority: i === 0 ? 'high' : 'medium',
       due: dOff(5 + i * 5),
       start: dOff(i * 5),
@@ -1296,7 +1334,7 @@ A.submitProject = () => {
   f.name = ($('#p-name')?.value || '').trim();
   f.desc = $('#p-desc')?.value || '';
   if (!f.name) {
-    S.ui.errors.pname = 'Give the project a name';
+    S.ui.errors.pname = 'Escribe un nombre para el proyecto';
     render();
     $('#p-name')?.focus();
     return;
@@ -1310,6 +1348,7 @@ A.submitProject = () => {
           desc: f.desc,
           icon: f.icon,
           color: f.color,
+          ptype: f.ptype || p.ptype || 'software',
           team: f.team,
           lead: f.lead,
           due: f.due,
@@ -1319,7 +1358,7 @@ A.submitProject = () => {
     ) {
       S.ui.modals.pop();
       render();
-      toast('Project updated');
+      toast('Proyecto actualizado');
     }
     return;
   }
@@ -1331,26 +1370,28 @@ A.submitProject = () => {
   )
     return;
   S.ui.modals.pop();
-  go('project', { id: p.id, tab: f.tmpl === 'blank' ? 'overview' : S.prefs.defaultTab || 'board' });
-  toast(`Created ${p.name}${tasksOf(p.id).length ? ` with ${tasksOf(p.id).length} starter tasks` : ''}`);
+  go('project', { id: p.id, tab: f.tmpl === 'blank' ? 'overview' : defaultProjTab(p) });
+  const nt = tasksOf(p.id).length;
+  toast(`Proyecto “${p.name}” creado${nt ? ` con ${nt} tareas iniciales` : ''}`);
 };
 A.dupProject = el => {
   const p = proj(el.dataset.id);
   S.ui.pop = null;
   let n;
   mutate(() => {
-    n = createProject({ ...p, name: p.name + ' copy' }, 'blank');
+    n = createProject({ ...p, name: p.name + ' (copia)' }, 'blank');
+    n.milestones = (p.milestones || []).map(ms => ({ ...ms, id: uid('ms') }));
     tasksOf(p.id).forEach(t => createTask({ ...JSON.parse(JSON.stringify(t)), id: uid('t'), key: undefined, project: n.id, status: 'todo' }));
   });
-  toast(`Duplicated ${p.name}`, { action: 'Open', onAction: () => go('project', { id: n.id }) });
+  toast(`Duplicado “${p.name}”`, { action: 'Abrir', onAction: () => go('project', { id: n.id }) });
 };
 A.archiveProject = el => {
   const p = proj(el.dataset.id);
   S.ui.pop = null;
   confirmDlg({
-    title: `Archive ${p.name}?`,
-    body: 'The project will be hidden from the sidebar and project lists. Tasks, files, and comments are kept, and you can restore it from Settings → Projects.',
-    ok: 'Archive project',
+    title: `¿Archivar ${p.name}?`,
+    body: 'El proyecto se ocultará de la barra lateral y de la lista de proyectos. Sus tareas e historial se mantienen y podrás restaurarlo desde Ajustes → Proyectos.',
+    ok: 'Archivar proyecto',
     icon: 'archive',
     run: () => {
       const snap = snapshot();
@@ -1361,7 +1402,7 @@ A.archiveProject = el => {
         })
       ) {
         if (S.ui.route === 'project' && S.ui.params.id === p.id) go('projects');
-        toast(`Archived ${p.name}`, { action: 'Undo', onAction: () => restore(snap) });
+        toast(`Archivado “${p.name}”`, { action: 'Deshacer', onAction: () => restore(snap) });
       }
     },
   });
@@ -1372,16 +1413,16 @@ A.restoreProject = el => {
     p.archived = false;
     p.archivedAt = null;
   });
-  toast(`Restored ${p.name}`);
+  toast(`Restaurado “${p.name}”`);
 };
 A.delProject = el => {
   const p = proj(el.dataset.id);
   S.ui.pop = null;
   const n = tasksOf(p.id).length;
   confirmDlg({
-    title: `Delete ${p.name}?`,
-    body: `This permanently deletes the project and its <b>${n} task${n === 1 ? '' : 's'}</b>, files, and comments for everyone. This can't be undone.`,
-    ok: 'Delete project',
+    title: `¿Eliminar ${p.name}?`,
+    body: `Se eliminarán de forma permanente el proyecto, sus <b>${n} tarea${n === 1 ? '' : 's'}</b> y todas sus notas. Esta acción no se puede deshacer.`,
+    ok: 'Eliminar proyecto',
     danger: true,
     typeName: p.name,
     run: () => {
@@ -1399,14 +1440,96 @@ A.delProject = el => {
         })
       ) {
         if (S.ui.route === 'project' && S.ui.params.id === p.id) go('projects');
-        toast(`Deleted ${p.name}`, { action: 'Undo', onAction: () => restore(snap) });
+        toast(`Eliminado “${p.name}”`, { action: 'Deshacer', onAction: () => restore(snap) });
       }
     },
   });
 };
 A.requestAccess = el => {
   const p = proj(el.dataset.id);
-  toast(`Access requested. We'll notify you when ${mem(p?.lead)?.name || 'the owner'} responds.`);
+  toast(`Acceso solicitado a ${mem(p?.lead)?.name || 'la persona responsable'}.`);
+};
+
+/* milestones */
+A.newMilestone = el => {
+  S.ui.msform = { name: '', date: dOff(7) };
+  S.ui.errors = {};
+  openModal({ type: 'milestone', id: el.dataset.id });
+};
+A.editMilestone = el => {
+  const p = proj(el.dataset.id);
+  const ms = p?.milestones?.[+el.dataset.i];
+  if (!ms) return;
+  S.ui.msform = { name: ms.name, date: ms.date || '' };
+  S.ui.errors = {};
+  openModal({ type: 'milestone', id: p.id, edit: +el.dataset.i });
+};
+IN.msform = el => {
+  S.ui.msform = S.ui.msform || { name: '', date: '' };
+  S.ui.msform[el.dataset.f] = el.value;
+  if (el.dataset.f === 'name' && S.ui.errors.msname && el.value.trim()) {
+    S.ui.errors.msname = null;
+    render();
+  }
+};
+A.submitMilestone = () => {
+  const m = S.ui.modals[S.ui.modals.length - 1];
+  const p = proj(m?.id);
+  if (!p) return;
+  const f = S.ui.msform || {};
+  const name = ($('#ms-name')?.value ?? f.name ?? '').trim();
+  const date = $('#ms-date')?.value ?? f.date ?? '';
+  if (!name) {
+    S.ui.errors.msname = 'Escribe un nombre para el hito';
+    render();
+    $('#ms-name')?.focus();
+    return;
+  }
+  S.ui.errors = {};
+  p.milestones = p.milestones || [];
+  if (
+    !mutate(() => {
+      if (m.edit != null && p.milestones[m.edit]) {
+        Object.assign(p.milestones[m.edit], { name, date: date || null });
+        D().activity.unshift({ id: uid('a'), by: D().me, verb: 'actualizó el hito', task: null, project: p.id, at: Date.now(), extra: `“${name}”` });
+      } else {
+        p.milestones.push({ id: uid('ms'), name, date: date || null, done: false });
+        D().activity.unshift({ id: uid('a'), by: D().me, verb: 'añadió el hito', task: null, project: p.id, at: Date.now(), extra: `“${name}”` });
+      }
+    })
+  )
+    return;
+  S.ui.modals.pop();
+  render();
+  toast(m.edit != null ? 'Hito actualizado' : 'Hito añadido');
+};
+A.toggleMilestone = el => {
+  const p = proj(el.dataset.id);
+  const ms = p?.milestones?.[+el.dataset.i];
+  if (!ms) return;
+  mutate(() => {
+    ms.done = !ms.done;
+    D().activity.unshift({
+      id: uid('a'),
+      by: D().me,
+      verb: ms.done ? 'completó el hito' : 'reabrió el hito',
+      task: null,
+      project: p.id,
+      at: Date.now(),
+      extra: `“${ms.name}”`,
+    });
+  });
+};
+A.delMilestone = el => {
+  const p = proj(el.dataset.id);
+  const i = +el.dataset.i;
+  const ms = p?.milestones?.[i];
+  if (!ms) return;
+  mutate(() => {
+    p.milestones.splice(i, 1);
+    D().activity.unshift({ id: uid('a'), by: D().me, verb: 'eliminó el hito', task: null, project: p.id, at: Date.now(), extra: `“${ms.name}”` });
+  });
+  toast('Hito eliminado');
 };
 
 /* sharing & invites */
@@ -1428,7 +1551,7 @@ A.shareAdd = el => {
   });
   S.ui.shareQ = '';
   render();
-  toast(`${m.name} can now edit ${p.name}`);
+  toast(`${m.name} ya puede editar ${p.name}`);
 };
 A.shareInvite = () => {
   const m = S.ui.modals[S.ui.modals.length - 1];
@@ -1449,11 +1572,11 @@ A.shareInvite = () => {
       });
     S.ui.shareQ = '';
     render();
-    toast(`Shared with ${ex.name}`);
+    toast(`Compartido con ${ex.name}`);
     return;
   }
   if (!/^\S+@\S+\.\S+$/.test(v)) {
-    toast('Enter a valid email address, like name@company.com', { kind: 'err' });
+    toast('Introduce un correo electrónico válido, ej. nombre@empresa.com', { kind: 'err' });
     return;
   }
   const nm = v
@@ -1462,14 +1585,14 @@ A.shareInvite = () => {
     .replace(/\b\w/g, c => c.toUpperCase());
   mutate(() => {
     const id = uid('m');
-    D().members.push({ id, name: nm, email: v, role: 'Guest', team: p.team, title: 'Guest', c: '#6B7280', status: 'invited', last: null, tz: '—' });
+    D().members.push({ id, name: nm, email: v, role: 'Guest', team: p.team, title: 'Invitado', c: '#6B7280', status: 'invited', last: null, tz: '—' });
     p.members.push(id);
     p.perms = p.perms || {};
     p.perms[id] = perm;
   });
   S.ui.shareQ = '';
   render();
-  toast(`Invitation sent to ${v}`);
+  toast(`Invitación enviada a ${v}`);
 };
 IN.sharePerm = el => {
   const p = proj(el.dataset.id);
@@ -1479,7 +1602,7 @@ IN.sharePerm = el => {
     mutate(() => {
       p.members = p.members.filter(x => x !== mid);
     });
-    toast(`Removed ${mem(mid).name}`, { action: 'Undo', onAction: () => restore(snap) });
+    toast(`Eliminado ${mem(mid).name}`, { action: 'Deshacer', onAction: () => restore(snap) });
   } else {
     mutate(() => {
       p.perms = p.perms || {};
@@ -1511,12 +1634,12 @@ A.submitInvite = () => {
     .filter(Boolean);
   const bad = list.filter(e => !/^\S+@\S+\.\S+$/.test(e));
   if (!list.length) {
-    S.ui.errors.invite = 'Enter at least one email address';
+    S.ui.errors.invite = 'Introduce al menos un correo electrónico';
     render();
     return;
   }
   if (bad.length) {
-    S.ui.errors.invite = `${bad[0]} isn't a valid email address`;
+    S.ui.errors.invite = `${bad[0]} no es un correo válido`;
     render();
     return;
   }
@@ -1547,14 +1670,14 @@ A.submitInvite = () => {
     S.ui.modals.pop();
     S.ui.errors = {};
     render();
-    toast(`${list.length} invitation${list.length > 1 ? 's' : ''} sent`);
+    toast(`${list.length} invitación${list.length > 1 ? 'es' : ''} enviada${list.length > 1 ? 's' : ''}`);
   });
 };
-A.copyInviteLink = () => copy(`https://gr8rstudio.com/join/${D().ws.url}-7f3k2`, 'Invite link copied');
+A.copyInviteLink = () => copy(`${location.origin}/#/join/${D().ws.url}`, 'Enlace de invitación copiado');
 A.resendInvite = el => {
   S.ui.pop = null;
   render();
-  toast(`Invite resent to ${mem(el.dataset.id).email}`);
+  toast(`Invitación reenviada a ${mem(el.dataset.id).email}`);
 };
 A.viewProfile = el => go('member', { id: el.dataset.id });
 A.assignToMember = el => {
@@ -1566,9 +1689,9 @@ A.removeMember = el => {
   S.ui.pop = null;
   const n = allTasks().filter(t => t.assignee === m.id && t.status !== 'done').length;
   confirmDlg({
-    title: `Remove ${m.name}?`,
-    body: `${esc(m.name)} will lose access to ${esc(D().ws.name)} immediately.${n ? ` Their <b>${n} open task${n > 1 ? 's' : ''}</b> will become unassigned.` : ''}`,
-    ok: 'Remove member',
+    title: `¿Quitar a ${m.name}?`,
+    body: `${esc(m.name)} perderá acceso a ${esc(D().ws.name)}.${n ? ` Sus <b>${n} tarea${n > 1 ? 's' : ''} abierta${n > 1 ? 's' : ''}</b> quedarán sin asignar.` : ''}`,
+    ok: 'Quitar miembro',
     danger: true,
     icon: 'user-minus',
     run: () => {
@@ -1583,7 +1706,7 @@ A.removeMember = el => {
         })
       ) {
         if (S.ui.route === 'member') go('members');
-        toast(`Removed ${m.name}`, { action: 'Undo', onAction: () => restore(snap) });
+        toast(`Eliminado ${m.name}`, { action: 'Deshacer', onAction: () => restore(snap) });
       }
     },
   });
@@ -1615,8 +1738,8 @@ A.renameFile = el => {
   S.ui.pop = null;
   openModal({
     type: 'prompt',
-    title: 'Rename file',
-    label: 'File name',
+    title: 'Renombrar archivo',
+    label: 'Nombre del archivo',
     value: f.name,
     run: v => {
       if (v)
@@ -1632,17 +1755,17 @@ A.dupFile = el => {
   S.ui.pop = null;
   mutate(() => {
     const i = D().files.indexOf(f);
-    D().files.splice(i + 1, 0, { ...f, id: uid('f'), name: f.name.replace(/(\.[^.]+)$/, ' copy$1'), at: Date.now(), by: D().me });
+    D().files.splice(i + 1, 0, { ...f, id: uid('f'), name: f.name.replace(/(\.[^.]+)$/, ' copia$1'), at: Date.now(), by: D().me });
   });
-  toast('File duplicated');
+  toast('Archivo duplicado');
 };
 A.delFile = el => {
   const f = D().files.find(x => x.id === el.dataset.id);
   S.ui.pop = null;
   confirmDlg({
-    title: 'Delete file?',
-    body: `<b>${esc(f.name)}</b> will be removed from the project${f.task ? ' and its task' : ''}.`,
-    ok: 'Delete file',
+    title: '¿Eliminar archivo?',
+    body: `<b>${esc(f.name)}</b> se eliminará del proyecto${f.task ? ' y de su tarea' : ''}.`,
+    ok: 'Eliminar archivo',
     danger: true,
     run: () => {
       const snap = snapshot();
@@ -1652,7 +1775,7 @@ A.delFile = el => {
           if (f.task && task(f.task)) task(f.task).attachments = task(f.task).attachments.filter(a => a.name !== f.name);
         })
       )
-        toast(`Deleted ${f.name}`, { action: 'Undo', onAction: () => restore(snap) });
+        toast(`Eliminado ${f.name}`, { action: 'Deshacer', onAction: () => restore(snap) });
     },
   });
 };
@@ -1676,7 +1799,7 @@ A.markAllRead = () => {
   D().notifs.forEach(x => (x.read = true));
   save();
   render();
-  if (n) toast("You're all caught up.");
+  if (n) toast('Todo marcado como leído.');
 };
 A.toggleUnreadOnly = () => {
   S.ui.inboxUnread = !S.ui.inboxUnread;
@@ -1743,7 +1866,7 @@ A.switchWs = el => {
   D().ws = { name: w.name, url: w.name.toLowerCase().replace(/[^a-z0-9]+/g, ''), c: w.c, brand: !!w.brand };
   save();
   go('home');
-  toast(`Switched to ${w.name}`);
+  toast(`Cambiado a ${w.name}`);
 };
 A.newWorkspace = () => {
   S.ui.pop = null;
@@ -1777,22 +1900,22 @@ A.toggleOffline = () => {
   S.ui.offline = !S.ui.offline;
   S.ui.pop = null;
   render();
-  toast(S.ui.offline ? 'Offline mode on — edits will fail to save' : 'Back online', { kind: S.ui.offline ? 'err' : 'ok' });
+  toast(S.ui.offline ? 'Modo sin conexión activado — los cambios no se guardarán' : 'De nuevo en línea', { kind: S.ui.offline ? 'err' : 'ok' });
 };
 A.retryOnline = el => {
   el.classList.add('is-loading');
   setTimeout(() => {
     S.ui.offline = false;
     render();
-    toast('Reconnected. All changes are synced.');
+    toast('Reconectado. Cambios sincronizados.');
   }, 700);
 };
 A.resetDemo = () => {
   S.ui.pop = null;
   confirmDlg({
-    title: 'Reset demo data?',
-    body: 'All projects, tasks, and settings in this browser go back to the original sample workspace.',
-    ok: 'Reset data',
+    title: '¿Restaurar datos iniciales?',
+    body: 'Los proyectos, tareas, hitos y ajustes volverán a las plantillas iniciales de Desarrollo SW y Ciberseguridad.',
+    ok: 'Restaurar',
     danger: true,
     icon: 'rotate-ccw',
     run: () => {
@@ -1802,32 +1925,32 @@ A.resetDemo = () => {
       S.ui.drawer = null;
       save();
       go('home');
-      toast('Demo data restored');
+      toast('Datos iniciales restaurados');
     },
   });
 };
 A.toastInfo = el => toast(el.dataset.msg, { kind: 'info' });
 A.demoToast = el => {
   const v = el.dataset.v;
-  if (v === 'err') toast("Your changes couldn't be saved.", { kind: 'err', action: 'Try again', onAction: () => toast('Saved') });
+  if (v === 'err') toast('No se pudieron guardar los cambios.', { kind: 'err', action: 'Reintentar', onAction: () => toast('Guardado') });
   else if (v === 'retry') {
-    toast('Retrying…', { kind: 'info', ms: 1200 });
-    setTimeout(() => toast('Loaded successfully'), 1300);
-  } else toast('Moved “Create homepage wireframes” to Review', { action: 'Undo', onAction: () => toast('Undone', { kind: 'info' }) });
+    toast('Reintentando…', { kind: 'info', ms: 1200 });
+    setTimeout(() => toast('Cargado correctamente'), 1300);
+  } else toast('Movida “Tarea de ejemplo” a Revisión', { action: 'Deshacer', onAction: () => toast('Deshecho', { kind: 'info' }) });
 };
 A.demoConfirm = () =>
   confirmDlg({
-    title: 'Archive Marketing Website?',
-    body: 'The project will be hidden from the sidebar. You can restore it any time.',
-    ok: 'Archive project',
+    title: '¿Archivar proyecto?',
+    body: 'El proyecto se ocultará de la barra lateral. Puedes restaurarlo en cualquier momento.',
+    ok: 'Archivar proyecto',
     icon: 'archive',
-    run: () => toast('This was a preview — nothing was archived', { kind: 'info' }),
+    run: () => toast('Vista previa — no se archivó nada', { kind: 'info' }),
   });
 A.demoLoad = el => {
   el.classList.add('is-loading');
   setTimeout(() => {
     el.classList.remove('is-loading');
-    toast('Loaded');
+    toast('Cargado');
   }, 1400);
 };
 A.reloadPage = () => {
@@ -1875,14 +1998,14 @@ IN.prefToggle = el => {
 IN.npToggle = el => {
   D().notifPrefs[el.dataset.k] = el.checked;
   save();
-  toast('Notification preferences saved', { ms: 1500 });
+  toast('Preferencias guardadas', { ms: 1500 });
 };
 IN.prefSel = el => {
   const k = el.dataset.k;
   S.prefs[k] = k === 'weekStart' ? +el.value : el.value;
   save();
   render();
-  toast('Preference saved', { ms: 1500 });
+  toast('Preferencia guardada', { ms: 1500 });
 };
 A.wsColor = el => {
   D().ws.c = el.dataset.v;
@@ -1891,15 +2014,15 @@ A.wsColor = el => {
 };
 A.saveWorkspace = () => {
   const n = $('#ws-name').value.trim();
-  const u = $('#ws-url')
-    .value.trim()
+  const u = ($('#ws-url')?.value || '')
+    .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-');
   if (!n) {
-    toast("Workspace name can't be empty", { kind: 'err' });
+    toast('El nombre del espacio no puede estar vacío', { kind: 'err' });
     return;
   }
-  loadingBtn('ws-save', 600, () => {
+  loadingBtn('ws-save', 450, () => {
     if (
       mutate(() => {
         const old = D().ws.name;
@@ -1909,23 +2032,23 @@ A.saveWorkspace = () => {
         if (w) w.name = n;
       })
     )
-      toast('Workspace settings saved');
+      toast('Ajustes del espacio guardados');
   });
 };
 A.delWorkspace = () =>
   confirmDlg({
-    title: `Delete ${D().ws.name}?`,
-    body: 'Every project, task, file, and comment in this workspace will be permanently deleted for all members.',
-    ok: 'Delete workspace',
+    title: `¿Eliminar ${D().ws.name}?`,
+    body: 'Se eliminarán todos los proyectos, tareas e hitos de este espacio.',
+    ok: 'Eliminar espacio',
     danger: true,
     typeName: D().ws.name,
     run: () => {
       S.data = seed();
       S.views = {};
       save();
-      S.ui.auth = 'login';
+      if (!SINGLE_USER) S.ui.auth = 'login';
       render();
-      toast('Workspace deleted. Demo data was restored for this prototype.', { kind: 'info', ms: 5000 });
+      toast('Espacio eliminado y restaurado con las plantillas iniciales.', { kind: 'info', ms: 5000 });
     },
   });
 A.avColor = el => {
@@ -1936,13 +2059,13 @@ A.avColor = el => {
 A.saveProfile = () => {
   const n = $('#pf-name').value.trim();
   if (!n) {
-    S.ui.errors.pname2 = 'Enter your name';
+    S.ui.errors.pname2 = 'Escribe tu nombre';
     render();
     return;
   }
   S.ui.errors.pname2 = null;
   const tt = $('#pf-title').value.trim();
-  loadingBtn('pf-save', 600, () => {
+  loadingBtn('pf-save', 450, () => {
     if (
       mutate(() => {
         S.prefs.name = n;
@@ -1951,7 +2074,7 @@ A.saveProfile = () => {
         me().title = tt;
       })
     )
-      toast('Profile updated');
+      toast('Perfil actualizado');
   });
 };
 IN.pwStrength = el => {
@@ -1968,9 +2091,9 @@ A.savePassword = () => {
     nw = $('#pw-new').value,
     cf = $('#pw-conf').value;
   S.ui.pwDone = false;
-  if (!cur) e.pwCur = 'Enter your current password';
-  if (nw.length < 10 || !/[0-9\W]/.test(nw)) e.pwNew = 'Use at least 10 characters, including a number or symbol';
-  if (nw !== cf) e.pwConf = "Passwords don't match";
+  if (!cur) e.pwCur = 'Introduce tu contraseña actual';
+  if (nw.length < 10 || !/[0-9\W]/.test(nw)) e.pwNew = 'Usa al menos 10 caracteres, incluyendo un número o símbolo';
+  if (nw !== cf) e.pwConf = 'Las contraseñas no coinciden';
   if (Object.keys(e).length) {
     render();
     return;
@@ -1979,27 +2102,27 @@ A.savePassword = () => {
     S.ui.pwDone = true;
     S.ui.pwNew = '';
     render();
-    toast('Password updated');
+    toast('Contraseña actualizada');
   });
 };
 A.revokeSession = el => {
   mutate(() => {
     D().sessions = D().sessions.filter(s => s.id !== el.dataset.id);
   });
-  toast('Session signed out');
+  toast('Sesión cerrada');
 };
 A.revokeAll = () =>
   confirmDlg({
-    title: 'Sign out of all other sessions?',
-    body: "You'll stay signed in on this device. Other devices will need to sign in again.",
-    ok: 'Sign out others',
+    title: '¿Cerrar el resto de sesiones?',
+    body: 'Seguirás conectado en este dispositivo.',
+    ok: 'Cerrar sesiones',
     danger: true,
     icon: 'log-out',
     run: () => {
       mutate(() => {
         D().sessions = D().sessions.filter(s => s.cur);
       });
-      toast('Signed out of other sessions');
+      toast('Sesiones cerradas');
     },
   });
 A.setup2fa = () => {
@@ -2014,7 +2137,7 @@ A.cancel2fa = () => {
 A.verify2fa = () => {
   const v = $('#tfa-code').value.trim();
   if (!/^\d{6}$/.test(v)) {
-    S.ui.errors.tfa = 'Enter the 6-digit code from your app';
+    S.ui.errors.tfa = 'Introduce el código de 6 dígitos';
     render();
     return;
   }
@@ -2023,35 +2146,35 @@ A.verify2fa = () => {
     D().tfa = true;
     S.ui.tfaSetup = false;
   });
-  toast('Two-factor authentication enabled');
+  toast('Autenticación en dos pasos activada');
 };
 A.disable2fa = () =>
   confirmDlg({
-    title: 'Turn off two-factor authentication?',
-    body: 'Your account will be protected by your password only.',
-    ok: 'Turn off',
+    title: '¿Desactivar autenticación en dos pasos?',
+    body: 'Tu cuenta quedará protegida solo con contraseña.',
+    ok: 'Desactivar',
     danger: true,
     icon: 'shield-off',
     run: () => {
       mutate(() => {
         D().tfa = false;
       });
-      toast('Two-factor authentication turned off');
+      toast('Autenticación en dos pasos desactivada');
     },
   });
 A.changePlan = el => {
   const v = el.dataset.v;
   const price = { Free: 0, Team: 12, Business: 24 }[v];
   confirmDlg({
-    title: `${v === 'Free' ? 'Downgrade' : 'Upgrade'} to ${v}?`,
-    body: `${D().members.length} members × $${price}/month = <b>$${D().members.length * price}/month</b>, prorated from today and billed to Visa ending 4242.`,
-    ok: v === 'Free' ? 'Downgrade' : `Upgrade to ${v}`,
+    title: `¿Cambiar al plan ${v}?`,
+    body: `${D().members.length} miembros × $${price}/mes = <b>$${D().members.length * price}/mes</b>.`,
+    ok: `Cambiar a ${v}`,
     icon: 'gem',
     run: () => {
       mutate(() => {
         D().plan = v;
       });
-      toast(`You're now on the ${v} plan`);
+      toast(`Plan cambiado a ${v}`);
     },
   });
 };
@@ -2086,20 +2209,20 @@ A.doLogin = () => {
   const em = $('#l-email').value.trim(),
     pw = $('#l-pw').value;
   S.ui.af.email = em;
-  if (!em) e.email = 'Enter your email address';
-  else if (!EMAIL_RE.test(em)) e.email = 'Enter a valid email, like name@company.com';
-  if (!pw) e.pw = 'Enter your password';
+  if (!em) e.email = 'Introduce tu correo';
+  else if (!EMAIL_RE.test(em)) e.email = 'Introduce un correo válido';
+  if (!pw) e.pw = 'Introduce tu contraseña';
   if (Object.keys(e).length) {
     render();
     (e.email ? $('#l-email') : $('#l-pw'))?.focus();
     if (!e.email) $('#l-pw').value = pw;
     return;
   }
-  loadingBtn('login-btn', 750, () => enterApp(`Signed in as ${em}`));
+  loadingBtn('login-btn', 750, () => enterApp(`Sesión iniciada como ${em}`));
 };
 A.socialAuth = el => {
   el.classList.add('is-loading');
-  setTimeout(() => enterApp(`Signed in with ${el.dataset.v}`), 800);
+  setTimeout(() => enterApp(`Sesión iniciada con ${el.dataset.v}`), 800);
 };
 A.doSignup = () => {
   const e = (S.ui.errors = {});
@@ -2108,9 +2231,9 @@ A.doSignup = () => {
     pw = $('#s-pw').value;
   S.ui.af.name = nm;
   S.ui.af.email = em;
-  if (!nm) e.name = 'Enter your name';
-  if (!EMAIL_RE.test(em)) e.email = 'Enter a valid work email';
-  if (pw.length < 10 || !/[0-9\W]/.test(pw)) e.pw = 'Use at least 10 characters, including a number or symbol';
+  if (!nm) e.name = 'Introduce tu nombre';
+  if (!EMAIL_RE.test(em)) e.email = 'Introduce un correo válido';
+  if (pw.length < 10 || !/[0-9\W]/.test(pw)) e.pw = 'Usa al menos 10 caracteres, incluyendo un número o símbolo';
   if (Object.keys(e).length) {
     render();
     $('#s-email').value = em;
@@ -2139,8 +2262,8 @@ A.resend = el => {
   if (el.dataset.v === 'verify') {
     startResend();
     render();
-    toast(`Verification email sent to ${S.ui.af.email}`);
-  } else toast(`Reset link sent to ${S.ui.af.email}`);
+    toast(`Correo de verificación enviado a ${S.ui.af.email}`);
+  } else toast(`Enlace enviado a ${S.ui.af.email}`);
 };
 A.verified = () => {
   S.ui.auth = 'onboarding';
@@ -2154,7 +2277,7 @@ A.doForgot = () => {
   S.ui.af.email = em;
   S.ui.errors = {};
   if (!EMAIL_RE.test(em)) {
-    S.ui.errors.email = 'Enter the email you use to sign in';
+    S.ui.errors.email = 'Introduce tu correo electrónico';
     render();
     return;
   }
@@ -2167,8 +2290,8 @@ A.doReset = () => {
   const a = $('#r-pw').value,
     b = $('#r-pw2').value;
   const e = (S.ui.errors = {});
-  if (a.length < 10 || !/[0-9\W]/.test(a)) e.pw = 'Use at least 10 characters, including a number or symbol';
-  if (a !== b) e.pw2 = "Passwords don't match";
+  if (a.length < 10 || !/[0-9\W]/.test(a)) e.pw = 'Usa al menos 10 caracteres, incluyendo un número o símbolo';
+  if (a !== b) e.pw2 = 'Las contraseñas no coinciden';
   if (Object.keys(e).length) {
     render();
     return;
@@ -2185,7 +2308,7 @@ A.onbSet = el => {
   S.ui.onbData[el.dataset.k] = el.dataset.v;
   if (el.dataset.k === 'tmpl') {
     const t = TEMPLATES.find(x => x.id === el.dataset.v);
-    if (t && !S.ui.onbData.projTouched) S.ui.onbData.proj = t.name === 'Website' ? 'Website Launch' : t.name;
+    if (t && !S.ui.onbData.projTouched) S.ui.onbData.proj = t.name;
   }
   render();
 };
@@ -2222,20 +2345,20 @@ A.onbBack = () => {
 A.onbNext = el => {
   const o = S.ui.onbData;
   if (S.ui.onb === 1 && !o.ws.trim()) {
-    S.ui.errors.ws = 'Name your workspace to continue';
+    S.ui.errors.ws = 'Escribe un nombre para el espacio';
     render();
     $('#o-ws')?.focus();
     return;
   }
   if (S.ui.onb === 3 && !o.proj.trim()) {
-    toast('Give your project a name', { kind: 'err' });
+    toast('Escribe un nombre para el proyecto', { kind: 'err' });
     return;
   }
   if (S.ui.onb === 4 && el.dataset.skip) o.invites = '';
   if (S.ui.onb === 4 && !el.dataset.skip) {
     const bad = (o.invites || '').split(',').filter(x => x && !EMAIL_RE.test(x));
     if (bad.length) {
-      toast(`${bad[0]} isn't a valid email address`, { kind: 'err' });
+      toast(`${bad[0]} no es un correo válido`, { kind: 'err' });
       return;
     }
   }
@@ -2253,19 +2376,20 @@ A.onbFinish = () => {
   mutate(() => {
     if (o.ws.trim()) {
       const c = ['#2F2E2A', '#5A67D8', '#23918A', '#C54B78'][D().workspaces.length % 4];
-      D().ws = { name: o.ws.trim(), url: o.url || 'workspace', c };
+      D().ws = { name: o.ws.trim(), url: o.url || 'espacio', c };
       if (!D().workspaces.some(w => w.name === D().ws.name)) D().workspaces.push({ id: uid('w'), name: D().ws.name, c, plan: 'Free' });
     }
-    S.prefs.defaultTab = { kanban: 'board', list: 'list', timeline: 'timeline', table: 'table' }[o.team] || 'board';
-    const tm = TEMPLATES.find(t => t.id === o.tmpl) || TEMPLATES[2];
+    S.prefs.defaultTab = { kanban: 'board', list: 'list', timeline: 'timeline', table: 'table' }[o.team] || 'auto';
+    const tm = TEMPLATES.find(t => t.id === o.tmpl) || TEMPLATES[1];
     p = createProject(
       {
         name: o.proj.trim() || tm.name,
         icon: tm.icon === 'file' ? 'folder' : tm.icon,
-        color: 'indigo',
+        color: tm.ptype === 'cyber' ? 'teal' : 'blue',
+        ptype: tm.ptype || 'software',
         team: me().team,
         lead: D().me,
-        desc: `Created during setup from the ${tm.name} template.`,
+        desc: `Creado desde la plantilla ${tm.name}.`,
       },
       tm.id,
     );
@@ -2288,6 +2412,6 @@ A.onbFinish = () => {
       );
   });
   S.ui.auth = null;
-  go('project', { id: p.id, tab: S.prefs.defaultTab });
-  toast(`Welcome to ${D().ws.name}`);
+  go('project', { id: p.id, tab: defaultProjTab(p) });
+  toast(`Bienvenido a ${D().ws.name}`);
 };

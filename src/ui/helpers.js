@@ -1,12 +1,12 @@
 /* ---------- small render helpers ---------- */
 import { TODAY, diffD, esc, parse, relDate } from '../core/utils.js';
 import { ic } from '../core/icons.js';
-import { LB, PR, PSTAT, ST } from '../core/constants.js';
+import { LB, PR, PSTAT, PTYPES, ST } from '../core/constants.js';
 import { D, mem, pColor } from '../core/store.js';
 
 export function av(id, cls = '', tip = true) {
   const m = mem(id);
-  if (!m) return `<span class="av empty ${cls}" ${tip ? 'data-tip="Unassigned"' : ''}>${ic('user', 11)}</span>`;
+  if (!m) return `<span class="av empty ${cls}" ${tip ? 'data-tip="Sin asignar"' : ''}>${ic('user', 11)}</span>`;
   const ini = m.name
     .split(' ')
     .map(x => x[0])
@@ -46,6 +46,10 @@ export const prPill = p => `${prIcon(p)}<span>${PR[p || 'none'].name}</span>`;
 export const lbl = id => (LB[id] ? `<span class="lbl" style="--c:${LB[id].c}"><i></i>${LB[id].name}</span>` : '');
 export const pIcon = (p, cls = '', s = 15) => `<span class="picon ${cls}" style="--c:${pColor(p)}">${ic(p.icon, s)}</span>`;
 export const pStatus = s => `<span class="pstatus" style="--c:${PSTAT[s].c}"><i></i>${PSTAT[s].name}</span>`;
+export const pTypeBadge = pt => {
+  const t = PTYPES[pt] || PTYPES.software;
+  return `<span class="badge" style="color:${t.c}">${ic(t.icon, 11)}${t.name}</span>`;
+};
 export function dueHtml(t, withIcon = true) {
   if (!t.due) return '';
   const n = diffD(parse(t.due), TODAY);
@@ -74,12 +78,12 @@ export function fmtComment(txt) {
 export const FT = {
   fig: { c: '#8662C9', i: 'pen-tool', n: 'Figma' },
   pdf: { c: '#C4473A', i: 'file-text', n: 'PDF' },
-  zip: { c: '#6B7280', i: 'folder-archive', n: 'Archive' },
-  img: { c: '#23918A', i: 'image', n: 'Image' },
-  sheet: { c: '#3D8E5F', i: 'file-spreadsheet', n: 'Spreadsheet' },
-  doc: { c: '#3B82C4', i: 'file-text', n: 'Document' },
-  code: { c: '#C48A1E', i: 'file-code', n: 'Code' },
-  other: { c: '#6B7280', i: 'file', n: 'File' },
+  zip: { c: '#6B7280', i: 'folder-archive', n: 'Archivo comprimido' },
+  img: { c: '#23918A', i: 'image', n: 'Imagen' },
+  sheet: { c: '#3D8E5F', i: 'file-spreadsheet', n: 'Hoja de cálculo' },
+  doc: { c: '#3B82C4', i: 'file-text', n: 'Documento' },
+  code: { c: '#C48A1E', i: 'file-code', n: 'Código' },
+  other: { c: '#6B7280', i: 'file', n: 'Archivo' },
 };
 export function fileType(name) {
   const e = (name.split('.').pop() || '').toLowerCase();

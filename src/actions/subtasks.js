@@ -70,11 +70,11 @@ A.promoteSub = el => {
         desc: s.note ? `<p>${esc(s.note)}</p>` : '',
       });
       t.subtasks = t.subtasks.filter(x => x !== s);
-      logAct('converted a subtask of', t, `into ${n.key}`);
+      logAct('convirtió una subtarea de', t, `en ${n.key}`);
     })
   )
     return;
   S.ui.subOpen = null;
   render();
-  toast(`Converted to ${n.key}`, { action: 'Open', onAction: () => A.openTask({ dataset: { id: n.id } }) });
+  toast(`Convertida en ${n.key}`, { action: 'Abrir', onAction: () => A.openTask({ dataset: { id: n.id } }) });
 };

@@ -2,56 +2,60 @@
 import { DAY, TODAY, diffD, esc, parse } from '../core/utils.js';
 import { ic } from '../core/icons.js';
 import { LABELS, PR, PRIOS, STATUSES } from '../core/constants.js';
-import { D, S, canSee, isOver, mem, pColor, proj, visibleProjects } from '../core/store.js';
+import { D, S, SINGLE_USER, canSee, isOver, mem, pColor, proj, visibleProjects } from '../core/store.js';
 import { av, prIcon, stIcon } from '../ui/helpers.js';
 
 export const FIELDS = {
-  status: { name: 'Status', icon: 'circle-dot', opts: () => STATUSES.map(s => ({ id: s.id, name: s.name, html: stIcon(s.id) })) },
-  assignee: {
-    name: 'Assignee',
-    icon: 'user',
-    opts: () => [
-      { id: 'none', name: 'Unassigned', html: av(null, 'sm', false) },
-      ...D().members.map(m => ({ id: m.id, name: m.name + (m.id === D().me ? ' (you)' : ''), html: av(m.id, 'sm', false) })),
-    ],
-  },
-  priority: { name: 'Priority', icon: 'signal-high', opts: () => PRIOS.map(p => ({ id: p.id, name: p.name, html: prIcon(p.id) })) },
+  status: { name: 'Estado', icon: 'circle-dot', opts: () => STATUSES.map(s => ({ id: s.id, name: s.name, html: stIcon(s.id) })) },
+  ...(SINGLE_USER
+    ? {}
+    : {
+        assignee: {
+          name: 'Responsable',
+          icon: 'user',
+          opts: () => [
+            { id: 'none', name: 'Sin asignar', html: av(null, 'sm', false) },
+            ...D().members.map(m => ({ id: m.id, name: m.name + (m.id === D().me ? ' (tú)' : ''), html: av(m.id, 'sm', false) })),
+          ],
+        },
+      }),
+  priority: { name: 'Prioridad', icon: 'signal-high', opts: () => PRIOS.map(p => ({ id: p.id, name: p.name, html: prIcon(p.id) })) },
   due: {
-    name: 'Due date',
+    name: 'Fecha límite',
     icon: 'calendar',
     opts: () => [
-      { id: 'overdue', name: 'Overdue' },
-      { id: 'today', name: 'Today' },
-      { id: 'week', name: 'Next 7 days' },
-      { id: 'later', name: 'Later' },
-      { id: 'nodate', name: 'No due date' },
+      { id: 'overdue', name: 'Vencida' },
+      { id: 'today', name: 'Hoy' },
+      { id: 'week', name: 'Próximos 7 días' },
+      { id: 'later', name: 'Más adelante' },
+      { id: 'nodate', name: 'Sin fecha' },
     ],
   },
   project: {
-    name: 'Project',
+    name: 'Proyecto',
     icon: 'folder',
     opts: () =>
       visibleProjects()
         .filter(canSee)
         .map(p => ({ id: p.id, name: p.name, html: `<span class="pdot" style="--c:${pColor(p)}"></span>` })),
   },
-  labels: { name: 'Labels', icon: 'tag', opts: () => LABELS.map(l => ({ id: l.id, name: l.name, html: `<span class="pdot" style="--c:${l.c}"></span>` })) },
+  labels: { name: 'Etiquetas', icon: 'tag', opts: () => LABELS.map(l => ({ id: l.id, name: l.name, html: `<span class="pdot" style="--c:${l.c}"></span>` })) },
   created: {
-    name: 'Created date',
+    name: 'Creación',
     icon: 'calendar-plus',
     opts: () => [
-      { id: '1', name: 'Last 24 hours' },
-      { id: '7', name: 'Last 7 days' },
-      { id: '30', name: 'Last 30 days' },
+      { id: '1', name: 'Últimas 24 horas' },
+      { id: '7', name: 'Últimos 7 días' },
+      { id: '30', name: 'Últimos 30 días' },
     ],
   },
   updated: {
-    name: 'Updated date',
+    name: 'Actualización',
     icon: 'history',
     opts: () => [
-      { id: '1', name: 'Last 24 hours' },
-      { id: '7', name: 'Last 7 days' },
-      { id: '30', name: 'Last 30 days' },
+      { id: '1', name: 'Últimas 24 horas' },
+      { id: '7', name: 'Últimos 7 días' },
+      { id: '30', name: 'Últimos 30 días' },
     ],
   },
 };
@@ -60,9 +64,9 @@ export function viewOf(key) {
     S.views[key] = {
       filters: [],
       sort: { f: 'manual', dir: 1 },
-      group: key === 'tasks' || key === 'mytasks' ? 'status' : 'status',
+      group: 'status',
       q: '',
-      hidden: ['start', 'created', 'deps'],
+      hidden: SINGLE_USER ? ['assignee', 'start', 'created', 'deps'] : ['start', 'created', 'deps'],
       colW: {},
       showDone: true,
     };
@@ -118,14 +122,14 @@ export function sortTasks(ts, s) {
   });
 }
 export function groupTasks(ts, g) {
-  if (g === 'none') return [{ key: 'all', name: 'All tasks', html: '', tasks: ts }];
+  if (g === 'none') return [{ key: 'all', name: 'Todas las tareas', html: '', tasks: ts }];
   let groups;
   if (g === 'status') groups = STATUSES.map(s => ({ key: s.id, name: s.name, html: stIcon(s.id), set: { status: s.id } }));
   else if (g === 'priority') groups = PRIOS.map(p => ({ key: p.id, name: p.name, html: prIcon(p.id), set: { priority: p.id } }));
   else if (g === 'assignee')
     groups = [
       ...D().members.map(m => ({ key: m.id, name: m.name, html: av(m.id, 'sm', false), set: { assignee: m.id } })),
-      { key: 'none', name: 'Unassigned', html: av(null, 'sm', false), set: { assignee: null } },
+      { key: 'none', name: 'Sin asignar', html: av(null, 'sm', false), set: { assignee: null } },
     ];
   else if (g === 'project')
     groups = visibleProjects()
@@ -133,12 +137,13 @@ export function groupTasks(ts, g) {
       .map(p => ({ key: p.id, name: p.name, html: `<span class="pdot" style="--c:${pColor(p)}"></span>`, set: { project: p.id } }));
   else if (g === 'due')
     groups = [
-      { key: 'overdue', name: 'Overdue' },
-      { key: 'today', name: 'Today' },
-      { key: 'week', name: 'Next 7 days' },
-      { key: 'later', name: 'Later' },
-      { key: 'nodate', name: 'No due date' },
+      { key: 'overdue', name: 'Vencidas' },
+      { key: 'today', name: 'Hoy' },
+      { key: 'week', name: 'Próximos 7 días' },
+      { key: 'later', name: 'Más adelante' },
+      { key: 'nodate', name: 'Sin fecha' },
     ].map(x => ({ ...x, html: ic('calendar', 14) }));
+  else groups = STATUSES.map(s => ({ key: s.id, name: s.name, html: stIcon(s.id), set: { status: s.id } }));
   groups.forEach(G => {
     G.tasks = ts.filter(t => {
       if (g === 'assignee') return (t.assignee || 'none') === G.key;
@@ -154,35 +159,36 @@ export function filterChips(key) {
   const chips = v.filters
     .map((f, i) => {
       const F = FIELDS[f.f];
+      if (!F) return '';
       const opts = F.opts();
       const names = f.v.map(id => opts.find(o => o.id === id)?.name || id);
-      const val = names.length ? (names.length > 2 ? `${names.length} selected` : names.join(', ')) : 'any';
-      return `${i ? '<span>and</span>' : ''}<span class="chip"><button data-a="pop" data-pop="fvals" data-key="${key}" data-i="${i}" style="display:inline-flex;gap:5px;align-items:center">${ic(F.icon, 12)}<b>${F.name}</b> ${f.op === 'not' ? 'is not' : 'is'} <span>${esc(val)}</span></button><button class="ibtn" data-a="rmFilter" data-key="${key}" data-i="${i}" aria-label="Remove filter">${ic('x', 12)}</button></span>`;
+      const val = names.length ? (names.length > 2 ? `${names.length} selec.` : names.join(', ')) : 'cualquiera';
+      return `${i ? '<span>y</span>' : ''}<span class="chip"><button data-a="pop" data-pop="fvals" data-key="${key}" data-i="${i}" style="display:inline-flex;gap:5px;align-items:center">${ic(F.icon, 12)}<b>${F.name}</b> ${f.op === 'not' ? 'no es' : 'es'} <span>${esc(val)}</span></button><button class="ibtn" data-a="rmFilter" data-key="${key}" data-i="${i}" aria-label="Quitar filtro">${ic('x', 12)}</button></span>`;
     })
     .join('');
-  return `<div class="chipsbar">${ic('list-filter', 13)}${chips}<button class="btn btn-sm btn-ghost" data-a="pop" data-pop="filter" data-key="${key}">${ic('plus', 12)}Add</button><span class="sp"></span><button class="btn btn-sm btn-ghost" data-a="clearFilters" data-key="${key}">Clear all</button></div>`;
+  return `<div class="chipsbar">${ic('list-filter', 13)}${chips}<button class="btn btn-sm btn-ghost" data-a="pop" data-pop="filter" data-key="${key}">${ic('plus', 12)}Añadir</button><span class="sp"></span><button class="btn btn-sm btn-ghost" data-a="clearFilters" data-key="${key}">Limpiar</button></div>`;
 }
 export function viewToolbar(key, opt = {}) {
   const v = viewOf(key);
   const sortName = {
     manual: 'Manual',
-    title: 'Title',
-    due: 'Due date',
-    priority: 'Priority',
-    status: 'Status',
-    created: 'Created',
-    updated: 'Updated',
-    assignee: 'Assignee',
-    start: 'Start date',
-    estimate: 'Estimate',
-    project: 'Project',
+    title: 'Título',
+    due: 'Fecha límite',
+    priority: 'Prioridad',
+    status: 'Estado',
+    created: 'Creación',
+    updated: 'Actualizado',
+    assignee: 'Responsable',
+    start: 'Inicio',
+    estimate: 'Estimación',
+    project: 'Proyecto',
   }[v.sort.f];
   return `<div class="toolbar" role="toolbar">
-    <div class="inwrap">${ic('search', 13)}<input class="input search-sm" id="vq-${key}" data-in="viewQ" data-key="${key}" placeholder="Search tasks" value="${esc(v.q)}" aria-label="Search tasks"></div>
-    <button class="btn btn-ghost ${v.filters.length ? 'on' : ''}" data-a="pop" data-pop="filter" data-key="${key}">${ic('list-filter', 14)}Filter${v.filters.length ? ` <span class="badge accent" style="height:16px;padding:0 5px">${v.filters.length}</span>` : ''}</button>
-    <button class="btn btn-ghost" data-a="pop" data-pop="sort" data-key="${key}">${ic('arrow-up-down', 14)}<span class="hide-m">Sort:</span> ${sortName}</button>
-    ${opt.group !== false ? `<button class="btn btn-ghost" data-a="pop" data-pop="group" data-key="${key}">${ic('rows-3', 14)}<span class="hide-m">Group:</span> ${{ status: 'Status', priority: 'Priority', assignee: 'Assignee', project: 'Project', due: 'Due date', none: 'None' }[v.group]}</button>` : ''}
-    ${opt.cols ? `<button class="btn btn-ghost" data-a="pop" data-pop="cols" data-key="${key}">${ic('columns-3', 14)}Columns</button>` : ''}
+    <div class="inwrap">${ic('search', 13)}<input class="input search-sm" id="vq-${key}" data-in="viewQ" data-key="${key}" placeholder="Buscar tareas" value="${esc(v.q)}" aria-label="Buscar tareas"></div>
+    <button class="btn btn-ghost ${v.filters.length ? 'on' : ''}" data-a="pop" data-pop="filter" data-key="${key}">${ic('list-filter', 14)}Filtrar${v.filters.length ? ` <span class="badge accent" style="height:16px;padding:0 5px">${v.filters.length}</span>` : ''}</button>
+    <button class="btn btn-ghost" data-a="pop" data-pop="sort" data-key="${key}">${ic('arrow-up-down', 14)}<span class="hide-m">Orden:</span> ${sortName}</button>
+    ${opt.group !== false ? `<button class="btn btn-ghost" data-a="pop" data-pop="group" data-key="${key}">${ic('rows-3', 14)}<span class="hide-m">Agrupar:</span> ${{ status: 'Estado', priority: 'Prioridad', assignee: 'Responsable', project: 'Proyecto', due: 'Fecha límite', none: 'Sin agrupar' }[v.group]}</button>` : ''}
+    ${opt.cols ? `<button class="btn btn-ghost" data-a="pop" data-pop="cols" data-key="${key}">${ic('columns-3', 14)}Columnas</button>` : ''}
     ${opt.extra || ''}
     <span class="sp"></span>
     ${opt.right || ''}

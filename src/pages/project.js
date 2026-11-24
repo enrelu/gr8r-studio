@@ -4,8 +4,8 @@
 import { esc } from '../core/utils.js';
 import { ic } from '../core/icons.js';
 import { PSTAT } from '../core/constants.js';
-import { D, S, canSee, proj, tasksOf } from '../core/store.js';
-import { avStack, empty, pIcon } from '../ui/helpers.js';
+import { D, S, SINGLE_USER, canSee, defaultProjTab, proj, tasksOf } from '../core/store.js';
+import { avStack, empty, pIcon, pTypeBadge } from '../ui/helpers.js';
 import { applyView, groupTasks, viewOf, viewToolbar } from '../shell/view-engine.js';
 import { listHtml } from '../components/task-list.js';
 import { page404, stateDenied } from './errors.js';
@@ -17,21 +17,21 @@ import { timelineHtml, tlControls } from '../views/timeline.js';
 import { filesHtml } from '../views/files.js';
 
 export const PTABS = [
-  ['overview', 'Overview', 'layout-dashboard'],
-  ['board', 'Board', 'square-kanban'],
-  ['list', 'List', 'list'],
-  ['table', 'Table', 'table-2'],
-  ['calendar', 'Calendar', 'calendar'],
-  ['timeline', 'Timeline', 'chart-gantt'],
-  ['files', 'Files', 'paperclip'],
-  ['activity', 'Activity', 'activity'],
+  ['overview', 'Resumen', 'layout-dashboard'],
+  ['board', 'Tablero', 'square-kanban'],
+  ['list', 'Lista', 'list'],
+  ['table', 'Tabla', 'table-2'],
+  ['calendar', 'Calendario', 'calendar'],
+  ['timeline', 'Cronograma', 'chart-gantt'],
+  ...(SINGLE_USER ? [] : [['files', 'Archivos', 'paperclip']]),
+  ['activity', 'Actividad', 'activity'],
 ];
 
 export function pageProject() {
   const p = proj(S.ui.params.id);
   if (!p) return page404();
   if (!canSee(p)) return stateDenied(p);
-  const tab = S.ui.params.tab || 'board';
+  const tab = S.ui.params.tab || defaultProjTab(p);
   const views = D().savedViews.filter(v => v.project === p.id);
   let body = '';
   const key = 'p:' + p.id;
@@ -48,7 +48,7 @@ export function pageProject() {
       body = taskViewBody(sv.type, applyView(ts, viewOf(k)), k, p);
     }
   } else if (tab === 'overview') body = projOverview(p);
-  else if (tab === 'files') body = filesHtml(p.id);
+  else if (tab === 'files' && !SINGLE_USER) body = filesHtml(p.id);
   else if (tab === 'activity') body = projActivity(p);
   else body = taskViewBody(tab, applyView(ts, viewOf(key)), key, p);
 
@@ -57,21 +57,26 @@ export function pageProject() {
       <div class="t">
         ${pIcon(p, 'lg', 18)}
         <h1>${esc(p.name)}</h1>
-        <button class="ibtn ibtn-sm" data-a="toggleFavProj" data-id="${p.id}" data-tip="${p.fav ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${p.fav}" aria-label="Favorite" style="${p.fav ? 'color:var(--amber)' : ''}">${ic('star', 15)}</button>
-        <button class="pillbtn bordered" data-a="pop" data-pop="pstatus" data-id="${p.id}" aria-label="Project status" style="height:24px"><span class="pdot" style="--c:${PSTAT[p.status].c};border-radius:50%;width:7px;height:7px"></span>${PSTAT[p.status].name}${ic('chevron-down', 12)}</button>
+        ${pTypeBadge(p.ptype)}
+        <button class="ibtn ibtn-sm" data-a="toggleFavProj" data-id="${p.id}" data-tip="${p.fav ? 'Quitar de favoritos' : 'Añadir a favoritos'}" aria-pressed="${p.fav}" aria-label="Favorito" style="${p.fav ? 'color:var(--amber)' : ''}">${ic('star', 15)}</button>
+        <button class="pillbtn bordered" data-a="pop" data-pop="pstatus" data-id="${p.id}" aria-label="Estado del proyecto" style="height:24px"><span class="pdot" style="--c:${PSTAT[p.status].c};border-radius:50%;width:7px;height:7px"></span>${PSTAT[p.status].name}${ic('chevron-down', 12)}</button>
         <span class="sp"></span>
         <div class="row" style="gap:4px">
-          <button class="row" data-a="share" data-id="${p.id}" aria-label="Members" style="gap:0">${avStack(p.members, 5, 'md')}</button>
-          <button class="ibtn ibtn-sm" data-a="share" data-id="${p.id}" data-tip="Add member" aria-label="Add member">${ic('user-plus', 15)}</button>
-          <button class="btn btn-secondary btn-sm hide-m" data-a="share" data-id="${p.id}">${ic('share-2', 13)}Share</button>
-          <button class="ibtn ibtn-sm" data-a="editProject" data-id="${p.id}" data-tip="Project settings" aria-label="Project settings">${ic('settings', 15)}</button>
-          <button class="ibtn ibtn-sm" data-a="ctxBtn" data-ctx="project" data-id="${p.id}" aria-label="More">${ic('ellipsis', 15)}</button>
+          ${
+            SINGLE_USER
+              ? ''
+              : `<button class="row" data-a="share" data-id="${p.id}" aria-label="Miembros" style="gap:0">${avStack(p.members, 5, 'md')}</button>
+          <button class="ibtn ibtn-sm" data-a="share" data-id="${p.id}" data-tip="Añadir miembro" aria-label="Añadir miembro">${ic('user-plus', 15)}</button>
+          <button class="btn btn-secondary btn-sm hide-m" data-a="share" data-id="${p.id}">${ic('share-2', 13)}Compartir</button>`
+          }
+          <button class="ibtn ibtn-sm" data-a="editProject" data-id="${p.id}" data-tip="Ajustes del proyecto" aria-label="Ajustes del proyecto">${ic('settings', 15)}</button>
+          <button class="ibtn ibtn-sm" data-a="ctxBtn" data-ctx="project" data-id="${p.id}" aria-label="Más opciones">${ic('ellipsis', 15)}</button>
         </div>
       </div>
-      <nav class="tabs" aria-label="Project views">
+      <nav class="tabs" aria-label="Vistas del proyecto">
         ${PTABS.map(([k, n, i]) => `<button ${tab === k ? 'aria-current="page"' : ''} class="tab ${tab === k ? 'on' : ''}" data-a="go" data-r="project" data-id="${p.id}" data-tab="${k}">${ic(i, 14)}${n}</button>`).join('')}
         ${views.map(v => `<button ${tab === 'v:' + v.id ? 'aria-current="page"' : ''} class="tab ${tab === 'v:' + v.id ? 'on' : ''}" data-a="go" data-r="project" data-id="${p.id}" data-tab="v:${v.id}" data-ctx="savedview" data-vid="${v.id}">${ic('list-filter', 14)}${esc(v.name)}</button>`).join('')}
-        <button class="tab" data-a="saveView" data-id="${p.id}" data-tip="Save current filters as a view" aria-label="Save view">${ic('plus', 14)}</button>
+        <button class="tab" data-a="saveView" data-id="${p.id}" data-tip="Guardar filtros como vista" aria-label="Guardar vista">${ic('plus', 14)}</button>
       </nav>
     </div>
     <div class="pbody${S.ui.fx.tab ? ' fx-tab' : ''}">${body}</div>
@@ -79,19 +84,19 @@ export function pageProject() {
 }
 export function taskViewBody(type, ts, key, p) {
   const v = viewOf(key);
-  const addBtn = `<button class="btn btn-primary btn-sm" data-a="newTask" data-project="${p.id}">${ic('plus', 13)}New task</button>`;
+  const addBtn = `<button class="btn btn-primary btn-sm" data-a="newTask" data-project="${p.id}">${ic('plus', 13)}Nueva tarea</button>`;
   const noTasks = !tasksOf(p.id).length;
   const emptyAll = empty(
     'list-checks',
-    'No tasks here',
-    'Add a task to get things moving.',
-    `<button class="btn btn-primary btn-sm" data-a="newTask" data-project="${p.id}">${ic('plus', 14)}Add task</button>`,
+    'No hay tareas aquí',
+    'Añade una tarea para poner en marcha este proyecto.',
+    `<button class="btn btn-primary btn-sm" data-a="newTask" data-project="${p.id}">${ic('plus', 14)}Añadir tarea</button>`,
   );
   const emptyFilter = empty(
     'search-x',
-    'No results found',
-    'No tasks match these filters.',
-    `<button class="btn btn-secondary btn-sm" data-a="clearFilters" data-key="${key}">Clear filters</button>`,
+    'Sin resultados',
+    'Ninguna tarea coincide con estos filtros.',
+    `<button class="btn btn-secondary btn-sm" data-a="clearFilters" data-key="${key}">Limpiar filtros</button>`,
   );
   if (type === 'board') return viewToolbar(key, { group: false, right: addBtn }) + (noTasks ? emptyAll : boardHtml(ts, key, { project: p.id }));
   if (type === 'list')

@@ -7,6 +7,7 @@ import './core/utils.js';
 import './core/icons.js';
 import './core/constants.js';
 import './data/seed.js';
+import './core/pb.js';
 import './core/store.js';
 import './ui/helpers.js';
 import './core/theme.js';
@@ -54,12 +55,13 @@ import './features/archive.js';
 import './actions/teams.js';
 import './actions/subtasks.js';
 import './actions/archive.js';
-import { S, D } from './core/store.js';
+import { S, D, SINGLE_USER, writeLocal } from './core/store.js';
+import { initPocketBase } from './core/pb.js';
 import { A } from './actions/actions.js';
 import { ROUTE_NAMES, render, go } from './shell/render.js';
 
 (function init() {
-  document.documentElement.lang = 'en';
+  document.documentElement.lang = 'es';
   if (!document.getElementById('sr-live')) {
     const l = document.createElement('div');
     l.id = 'sr-live';
@@ -69,10 +71,11 @@ import { ROUTE_NAMES, render, go } from './shell/render.js';
   }
   const h = (location.hash || '').slice(1);
   const authRoutes = ['login', 'signup', 'forgot', 'reset', 'verify', 'onboarding'];
-  if (authRoutes.includes(h)) S.ui.auth = h;
+  if (!SINGLE_USER && authRoutes.includes(h)) S.ui.auth = h;
   else if (h && ROUTE_NAMES[h]) S.ui.route = h;
   else S.ui.route = S.prefs.home || 'home';
   render();
+  initPocketBase(S, writeLocal, () => render());
 })();
 
 // Dev-only handle for debugging and screenshot tooling; stripped from production builds.

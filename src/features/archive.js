@@ -12,7 +12,7 @@ export function pageArchive() {
     .sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
   const ps = D().projects.filter(p => p.archived);
   const row = (lead, title, sub, when, restoreAct, delAct, id) =>
-    `<div class="mini" style="min-height:52px;cursor:default;gap:12px">${lead}<div class="grow" style="min-width:0"><div class="trunc" style="font-weight:500">${title}</div><div class="faint trunc" style="font-size:12px">${sub}</div></div><span class="faint hide-m" style="font-size:12px;white-space:nowrap">${when}</span><button class="btn btn-secondary btn-sm" data-a="${restoreAct}" data-id="${id}">${ic('rotate-ccw', 13)}Restore</button><button class="ibtn ibtn-sm" data-a="${delAct}" data-id="${id}" data-tip="Delete permanently" aria-label="Delete permanently" style="color:var(--red)">${ic('trash-2', 15)}</button></div>`;
+    `<div class="mini" style="min-height:52px;cursor:default;gap:12px">${lead}<div class="grow" style="min-width:0"><div class="trunc" style="font-weight:500">${title}</div><div class="faint trunc" style="font-size:12px">${sub}</div></div><span class="faint hide-m" style="font-size:12px;white-space:nowrap">${when}</span><button class="btn btn-secondary btn-sm" data-a="${restoreAct}" data-id="${id}">${ic('rotate-ccw', 13)}Restaurar</button><button class="ibtn ibtn-sm" data-a="${delAct}" data-id="${id}" data-tip="Eliminar permanentemente" aria-label="Eliminar permanentemente" style="color:var(--red)">${ic('trash-2', 15)}</button></div>`;
   const body =
     tab === 'tasks'
       ? ts.length
@@ -23,22 +23,22 @@ export function pageArchive() {
                 stIcon(t.status, 15),
                 esc(t.title),
                 `<span class="mono">${t.key}</span> · ${esc(p.name)}`,
-                t.archivedAt ? 'Archived ' + ago(t.archivedAt) : 'Archived',
+                t.archivedAt ? 'Archivada ' + ago(t.archivedAt) : 'Archivada',
                 'restoreTask',
                 'purgeTask',
                 t.id,
               );
             })
             .join('')}</div>`
-        : `<div class="panel">${empty('archive', 'No archived tasks', 'Archive finished or abandoned tasks to keep boards focused. They wait here until you restore them.', '')}</div>`
+        : `<div class="panel">${empty('archive', 'Sin tareas archivadas', 'Archiva tareas terminadas o descartadas para mantener los tableros limpios.', '')}</div>`
       : ps.length
-        ? `<div class="panel" style="overflow:hidden">${ps.map(p => row(pIcon(p, '', 14), esc(p.name), `${D().tasks.filter(t => t.project === p.id).length} tasks · ${PSTAT[p.status].name}`, p.archivedAt ? 'Archived ' + ago(p.archivedAt) : 'Archived', 'restoreProject', 'delProject', p.id)).join('')}</div>`
-        : `<div class="panel">${empty('archive', 'No archived projects', 'Archived projects disappear from the sidebar and project lists but keep every task, file, and comment.', '')}</div>`;
+        ? `<div class="panel" style="overflow:hidden">${ps.map(p => row(pIcon(p, '', 14), esc(p.name), `${D().tasks.filter(t => t.project === p.id).length} tareas · ${PSTAT[p.status].name}`, p.archivedAt ? 'Archivado ' + ago(p.archivedAt) : 'Archivado', 'restoreProject', 'delProject', p.id)).join('')}</div>`
+        : `<div class="panel">${empty('archive', 'Sin proyectos archivados', 'Los proyectos archivados se ocultan de la barra lateral pero conservan sus tareas, hitos y notas.', '')}</div>`;
   return `<div class="page" style="max-width:900px">
-    <div class="ph"><div><h1>Archive</h1><p>Archived work is hidden everywhere else. Restore it any time, or delete it for good.</p></div></div>
-    <div class="tabs" style="margin-bottom:14px" role="tablist" aria-label="Archive">${[
-      ['tasks', 'Tasks', ts.length],
-      ['projects', 'Projects', ps.length],
+    <div class="ph"><div><h1>Archivo</h1><p>El trabajo archivado se oculta del resto de vistas. Puedes restaurarlo o eliminarlo definitivamente.</p></div></div>
+    <div class="tabs" style="margin-bottom:14px" role="tablist" aria-label="Archivo">${[
+      ['tasks', 'Tareas', ts.length],
+      ['projects', 'Proyectos', ps.length],
     ]
       .map(
         ([k, n, c]) =>

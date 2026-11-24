@@ -1,23 +1,27 @@
 /* ---------- store ---------- */
 import { TODAY, diffD, iso, parse, uid } from './utils.js';
-import { PCOLORS, TEAMS_SEED } from './constants.js';
+import { PCOLORS, PTYPES, TEAMS_SEED } from './constants.js';
 import { seed } from '../data/seed.js';
+import { schedulePbSync } from './pb.js';
 
-export const STORE_KEY = 'gr8r.v2';
+export const SINGLE_USER = true;
+export const STORE_KEY = 'gr8r.es.v1';
 export const DEFAULT_PREFS = {
   theme: 'system',
   accent: 'indigo',
   side: 'comfortable',
   density: 'comfortable',
   weekStart: 1,
-  dateFmt: 'MMM d',
-  lang: 'English (US)',
-  tz: '(GMT-07:00) Pacific Time',
+  dateFmt: 'd/M',
+  timeFmt: '24',
+  lang: 'Español',
+  tz: '(GMT+01:00) Madrid',
   motion: 'system',
   home: 'home',
   openTasks: 'drawer',
-  name: 'Tanjim Islam',
-  title: 'Head of Product',
+  defaultTab: 'auto',
+  name: 'Personal',
+  title: 'Desarrollo & Ciberseguridad',
 };
 export function load() {
   try {
@@ -41,13 +45,13 @@ export const S = {
     auth: null,
     authStep: 'login',
     onb: 0,
-    onbData: { use: 'product', team: 'kanban', size: '2-10', ws: '', proj: 'Website Launch', tmpl: 'web', invites: '' },
+    onbData: { use: 'software', team: 'eng', size: '1', ws: '', proj: 'Nuevo Proyecto', tmpl: 'software', invites: '' },
     route: 'home',
     params: {},
     history: [],
     collapsed: !!saved?.collapsed,
     mnav: false,
-    expanded: { p1: true },
+    expanded: { p1: true, p2: true },
     drawer: null,
     drawerFull: false,
     drawerTab: 'comments',
@@ -56,6 +60,7 @@ export const S = {
     palette: null,
     loading: false,
     offline: false,
+    pbStatus: 'connecting',
     sel: new Set(),
     composer: null,
     editCell: null,
@@ -83,30 +88,38 @@ export const S = {
   },
 };
 export let _saveT;
+export function writeLocal() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ data: S.data, prefs: S.prefs, views: S.views, collapsed: S.ui.collapsed }));
+  } catch {
+    /* storage full or blocked: keep working in memory */
+  }
+}
 export function save() {
   clearTimeout(_saveT);
   _saveT = setTimeout(() => {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ data: S.data, prefs: S.prefs, views: S.views, collapsed: S.ui.collapsed }));
-    } catch {
-      /* storage full or blocked: keep working in memory */
-    }
+    writeLocal();
+    schedulePbSync(S);
   }, 150);
 }
 
 /* ---------- lookups ---------- */
 export const D = () => S.data;
-export const me = () => D().members.find(m => m.id === D().me);
+export const me = () => D().members.find(m => m.id === D().me) || D().members[0];
 export const mem = id => D().members.find(m => m.id === id);
 export const proj = id => D().projects.find(p => p.id === id);
 export const task = id => D().tasks.find(t => t.id === id);
 export const pColor = p => PCOLORS[p?.color] || PCOLORS.slate;
+export const defaultProjTab = p => {
+  if (S.prefs.defaultTab && S.prefs.defaultTab !== 'auto') return S.prefs.defaultTab;
+  return PTYPES[p?.ptype]?.defaultTab || 'board';
+};
 export const visibleProjects = () =>
   D()
     .projOrder.map(proj)
     .filter(Boolean)
     .filter(p => !p.archived);
-export const canSee = p => !p.private || p.members.includes(D().me);
+export const canSee = p => (SINGLE_USER ? !!p : !p?.private || p.members.includes(D().me));
 export const tasksOf = pid => D().tasks.filter(t => t.project === pid && !t.archived);
 export const allTasks = () => D().tasks.filter(t => !t.archived && canSee(proj(t.project)));
 export const isOver = t => t.due && t.status !== 'done' && diffD(parse(t.due), TODAY) < 0;
@@ -128,8 +141,8 @@ export function logAct(verb, t, extra = '') {
   if (t) t.updated = Date.now();
 }
 
-/* ---------- teams (workspace data, seeded on first use) ---------- */
-export const NO_TEAM = { id: '', name: 'No team', icon: 'users', c: '#8A867E', desc: '' };
+/* ---------- teams (workspace data, kept for optional future team mode) ---------- */
+export const NO_TEAM = { id: '', name: 'General', icon: 'users', c: '#8A867E', desc: '' };
 export function teamsList() {
   const d = D();
   if (!d.teams) d.teams = TEAMS_SEED.map(t => ({ ...t }));

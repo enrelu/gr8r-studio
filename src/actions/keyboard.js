@@ -1,7 +1,7 @@
 /* ---------- keyboard ---------- */
 import { $, $$ } from '../core/utils.js';
 import { STATUSES } from '../core/constants.js';
-import { S } from '../core/store.js';
+import { S, SINGLE_USER } from '../core/store.js';
 import { go, render } from '../shell/render.js';
 import { closeModal } from '../overlays/modals.js';
 import { closePop } from '../overlays/popovers.js';
@@ -157,6 +157,11 @@ document.addEventListener('keydown', e => {
       A.submitProject();
       return;
     }
+    if (top?.type === 'milestone') {
+      e.preventDefault();
+      A.submitMilestone();
+      return;
+    }
     if (t.dataset?.keyModEnter) {
       e.preventDefault();
       KEY[t.dataset.keyModEnter]?.(t);
@@ -183,7 +188,9 @@ document.addEventListener('keydown', e => {
   const k = e.key;
   if (gPending && Date.now() - gPending < 1200) {
     gPending = 0;
-    const map = { h: 'home', t: 'mytasks', p: 'projects', i: 'inbox', c: 'calendar', s: 'settings', n: 'notifications', a: 'activity', m: 'members' };
+    const map = SINGLE_USER
+      ? { h: 'home', t: 'mytasks', p: 'projects', c: 'calendar', s: 'settings', a: 'activity' }
+      : { h: 'home', t: 'mytasks', p: 'projects', i: 'inbox', c: 'calendar', s: 'settings', n: 'notifications', a: 'activity', m: 'members' };
     if (map[k.toLowerCase()]) {
       e.preventDefault();
       go(map[k.toLowerCase()]);

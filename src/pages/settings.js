@@ -3,65 +3,85 @@
    ===================================================================== */
 import { dOff, esc, fmtDate } from '../core/utils.js';
 import { ic, wsLogo } from '../core/icons.js';
-import { D, S, me } from '../core/store.js';
+import { D, S, SINGLE_USER, me } from '../core/store.js';
 import { av, pIcon } from '../ui/helpers.js';
 import { permsTable, teamsGrid } from './members.js';
 import { page404 } from './errors.js';
 import { SHORTCUTS } from '../overlays/modals.js';
 
-export const SET_NAV = [
-  [
-    'General',
-    [
-      ['workspace', 'Workspace', 'building-2'],
-      ['appearance', 'Appearance', 'palette'],
-      ['language', 'Language', 'languages'],
-      ['datetime', 'Date & time', 'clock'],
-    ],
-  ],
-  [
-    'Workspace',
-    [
-      ['members', 'Members', 'users'],
-      ['teams', 'Teams', 'users-round'],
-      ['projects', 'Projects', 'folder-kanban'],
-      ['permissions', 'Permissions', 'shield'],
-    ],
-  ],
-  [
-    'Notifications',
-    [
-      ['notif-email', 'Email', 'mail'],
-      ['notif-push', 'Push', 'smartphone'],
-      ['notif-mentions', 'Mentions', 'at-sign'],
-      ['notif-assign', 'Task assignments', 'user-check'],
-    ],
-  ],
-  [
-    'Personal',
-    [
-      ['profile', 'Profile', 'user'],
-      ['preferences', 'Preferences', 'sliders-horizontal'],
-      ['shortcuts', 'Keyboard shortcuts', 'keyboard'],
-    ],
-  ],
-  [
-    'Security',
-    [
-      ['password', 'Password', 'key-round'],
-      ['sessions', 'Sessions', 'monitor-smartphone'],
-      ['2fa', 'Two-factor authentication', 'shield-check'],
-    ],
-  ],
-  [
-    'Billing',
-    [
-      ['plan', 'Plan', 'gem'],
-      ['payment', 'Payment', 'credit-card'],
-      ['invoices', 'Invoices', 'receipt'],
-    ],
-  ],
-];
+export const SET_NAV = SINGLE_USER
+  ? [
+      [
+        'General',
+        [
+          ['workspace', 'Espacio de trabajo', 'building-2'],
+          ['appearance', 'Apariencia', 'palette'],
+          ['language', 'Idioma', 'languages'],
+          ['datetime', 'Fecha y hora', 'clock'],
+        ],
+      ],
+      ['Proyectos', [['projects', 'Proyectos y archivo', 'folder-kanban']]],
+      [
+        'Personal',
+        [
+          ['preferences', 'Preferencias', 'sliders-horizontal'],
+          ['shortcuts', 'Atajos de teclado', 'keyboard'],
+        ],
+      ],
+    ]
+  : [
+      [
+        'General',
+        [
+          ['workspace', 'Espacio de trabajo', 'building-2'],
+          ['appearance', 'Apariencia', 'palette'],
+          ['language', 'Idioma', 'languages'],
+          ['datetime', 'Fecha y hora', 'clock'],
+        ],
+      ],
+      [
+        'Espacio',
+        [
+          ['members', 'Miembros', 'users'],
+          ['teams', 'Equipos', 'users-round'],
+          ['projects', 'Proyectos', 'folder-kanban'],
+          ['permissions', 'Permisos', 'shield'],
+        ],
+      ],
+      [
+        'Notificaciones',
+        [
+          ['notif-email', 'Correo', 'mail'],
+          ['notif-push', 'Push', 'smartphone'],
+          ['notif-mentions', 'Menciones', 'at-sign'],
+          ['notif-assign', 'Asignaciones', 'user-check'],
+        ],
+      ],
+      [
+        'Personal',
+        [
+          ['profile', 'Perfil', 'user'],
+          ['preferences', 'Preferencias', 'sliders-horizontal'],
+          ['shortcuts', 'Atajos de teclado', 'keyboard'],
+        ],
+      ],
+      [
+        'Seguridad',
+        [
+          ['password', 'Contraseña', 'key-round'],
+          ['sessions', 'Sesiones', 'monitor-smartphone'],
+          ['2fa', 'Autenticación 2FA', 'shield-check'],
+        ],
+      ],
+      [
+        'Facturación',
+        [
+          ['plan', 'Plan', 'gem'],
+          ['payment', 'Método de pago', 'credit-card'],
+          ['invoices', 'Facturas', 'receipt'],
+        ],
+      ],
+    ];
 export function srow(t, d, ctl) {
   return `<div class="srow"><div><div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}</div><div class="row">${ctl}</div></div>`;
 }
@@ -76,9 +96,9 @@ export const sel = (k, opts, v) =>
     .join('')}</select>`;
 export function pageSettings() {
   const sec = S.ui.params.sec || S.ui.settings || 'appearance';
-  const title = SET_NAV.flatMap(g => g[1]).find(x => x[0] === sec) || ['appearance', 'Appearance'];
+  const title = SET_NAV.flatMap(g => g[1]).find(x => x[0] === sec) || ['appearance', 'Apariencia'];
   return `<div class="set">
-    <nav class="set-nav" aria-label="Settings">${SET_NAV.map(([g, items]) => `<div class="gh">${g}</div>${items.map(([k, n, i]) => `<button class="sitem ${sec === k ? 'on' : ''}" data-a="go" data-r="settings" data-sec="${k}">${ic(i, 15)}<span>${n}</span></button>`).join('')}`).join('')}</nav>
+    <nav class="set-nav" aria-label="Ajustes">${SET_NAV.map(([g, items]) => `<div class="gh">${g}</div>${items.map(([k, n, i]) => `<button class="sitem ${sec === k ? 'on' : ''}" data-a="go" data-r="settings" data-sec="${k}">${ic(i, 15)}<span>${n}</span></button>`).join('')}`).join('')}</nav>
     <div class="set-body" data-keep="set:${sec}"><div class="set-in">${settingsBody(sec, title[1])}</div></div>
   </div>`;
 }
@@ -90,23 +110,32 @@ export function settingsBody(sec, title) {
   switch (sec) {
     case 'workspace':
       return (
-        H('Your workspace name, address, and identity.') +
+        H('Nombre, color y estado de almacenamiento de tu espacio.') +
         `
       <form data-submit="saveWorkspace">
-      <div class="sblock" style="margin-top:0"><div class="row" style="gap:14px;margin-bottom:18px">${wsLogo(d.ws, 52)}<div><div class="label" style="margin-bottom:6px">Workspace icon</div><div class="swatches">${['#2F2E2A', '#5A67D8', '#3B82C4', '#23918A', '#C54B78', '#C48A1E'].map(c => `<button type="button" class="sw ${d.ws.c === c ? 'on' : ''}" style="--c:${c};width:22px;height:22px" data-a="wsColor" data-v="${c}" aria-label="Color ${c}"></button>`).join('')}</div></div></div>
-      <div class="col" style="gap:14px;max-width:440px"><div class="field"><label class="label" for="ws-name">Workspace name</label><input class="input" id="ws-name" value="${esc(d.ws.name)}"></div>
-      <div class="field"><label class="label" for="ws-url">Workspace URL</label><div class="row" style="gap:0"><span class="input" style="width:auto;background:var(--surface-2);border-right:0;border-radius:6px 0 0 6px;display:flex;align-items:center;color:var(--text-2)">gr8rstudio.com/</span><input class="input" id="ws-url" value="${esc(d.ws.url)}" style="border-radius:0 6px 6px 0"></div><span class="hint">Changing the URL will break existing links.</span></div>
-      <div><button class="btn btn-primary" data-a="saveWorkspace" id="ws-save">Save changes</button></div></div></div></form>
-      <div class="sblock"><h2 style="color:var(--red)">Danger zone</h2>${srow('Delete workspace', 'Permanently delete this workspace, its projects, tasks, and files. This cannot be undone.', `<button class="btn btn-danger-ghost" style="border:1px solid color-mix(in srgb,var(--red) 35%,transparent)" data-a="delWorkspace">Delete workspace</button>`)}</div>`
+      <div class="sblock" style="margin-top:0"><div class="row" style="gap:14px;margin-bottom:18px">${wsLogo(d.ws, 52)}<div><div class="label" style="margin-bottom:6px">Color del icono</div><div class="swatches">${['#1D1C1A', '#2F2E2A', '#5A67D8', '#3B82C4', '#23918A', '#C54B78', '#C48A1E'].map(c => `<button type="button" class="sw ${d.ws.c === c ? 'on' : ''}" style="--c:${c};width:22px;height:22px" data-a="wsColor" data-v="${c}" aria-label="Color ${c}"></button>`).join('')}</div></div></div>
+      <div class="col" style="gap:14px;max-width:440px"><div class="field"><label class="label" for="ws-name">Nombre del espacio</label><input class="input" id="ws-name" value="${esc(d.ws.name)}"></div>
+      ${SINGLE_USER ? `<input type="hidden" id="ws-url" value="${esc(d.ws.url)}">` : `<div class="field"><label class="label" for="ws-url">URL del espacio</label><div class="row" style="gap:0"><span class="input" style="width:auto;background:var(--surface-2);border-right:0;border-radius:6px 0 0 6px;display:flex;align-items:center;color:var(--text-2)">gr8r/</span><input class="input" id="ws-url" value="${esc(d.ws.url)}" style="border-radius:0 6px 6px 0"></div></div>`}
+      <div><button class="btn btn-primary" data-a="saveWorkspace" id="ws-save">Guardar cambios</button></div></div></div></form>
+      <div class="sblock"><h2>Datos y respaldo</h2>
+        ${srow(
+          'Estado de PocketBase',
+          S.ui.pbStatus === 'synced'
+            ? 'Conectado y sincronizando automáticamente con la base SQLite local.'
+            : 'Sin conexión a PocketBase: los cambios se guardan en localStorage del navegador.',
+          `<span class="badge ${S.ui.pbStatus === 'synced' ? 'green' : ''}">${S.ui.pbStatus === 'synced' ? 'PocketBase activo' : 'Modo local'}</span>`,
+        )}
+        ${srow('Restaurar plantillas iniciales', 'Vuelve a cargar los proyectos plantilla de Desarrollo SW y Ciberseguridad.', `<button class="btn btn-danger-ghost" style="border:1px solid color-mix(in srgb,var(--red) 35%,transparent)" data-a="resetDemo">Restaurar plantillas</button>`)}
+      </div>`
       );
     case 'appearance':
       return (
-        H('Customize how Gr8r looks on this device.') +
+        H('Personaliza el aspecto visual en este dispositivo.') +
         `
-      <div class="sblock" style="margin-top:0"><h2>Theme</h2><div class="themecards" style="margin-top:12px" role="radiogroup" aria-label="Theme">${[
-        ['light', 'Light'],
-        ['dark', 'Dark'],
-        ['system', 'System'],
+      <div class="sblock" style="margin-top:0"><h2>Tema</h2><div class="themecards" style="margin-top:12px" role="radiogroup" aria-label="Tema">${[
+        ['light', 'Claro'],
+        ['dark', 'Oscuro'],
+        ['system', 'Sistema'],
       ]
         .map(([k, n]) => {
           const L = { bg: '#FBFAF8', s: '#F2F1EE', t: '#1D1C1A', b: '#E3E1DC', a: '#4B5BD6' },
@@ -116,34 +145,52 @@ export function settingsBody(sec, title) {
           return `<button class="tcard ${P.theme === k ? 'on' : ''}" role="radio" aria-checked="${P.theme === k}" data-a="setTheme" data-v="${k}"><div class="tprev" style="${k === 'system' ? 'grid-template-columns:1fr 1fr;display:grid' : ''}">${k === 'system' ? `<div style="display:grid;grid-template-columns:30% 1fr">${pv(L)}</div><div style="display:grid;grid-template-columns:30% 1fr">${pv(Dk)}</div>` : pv(k === 'light' ? L : Dk)}</div><span class="row" style="font-weight:500;font-size:13px;gap:6px">${ic(k === 'light' ? 'sun' : k === 'dark' ? 'moon' : 'monitor', 14)}${n}${P.theme === k ? `<span class="sp"></span><span style="color:var(--accent)">${ic('circle-check', 15)}</span>` : ''}</span></button>`;
         })
         .join('')}</div></div>
-      <div class="sblock"><h2>Accent color</h2>${srow(
-        'Accent',
-        'Used for primary buttons, focus rings, and selection.',
-        `<div class="swatches" role="radiogroup" aria-label="Accent color">${[
-          ['indigo', '#4B5BD6'],
-          ['blue', '#2F6CD4'],
-          ['violet', '#7348CC'],
-          ['teal', '#1A7F7A'],
-          ['rose', '#B93D68'],
-          ['graphite', '#34332F'],
+      <div class="sblock"><h2>Color de acento</h2>${srow(
+        'Acento',
+        'Usado en botones principales, foco y selección.',
+        `<div class="swatches" role="radiogroup" aria-label="Color de acento">${[
+          ['indigo', '#4B5BD6', 'Índigo'],
+          ['blue', '#2F6CD4', 'Azul'],
+          ['violet', '#7348CC', 'Violeta'],
+          ['teal', '#1A7F7A', 'Verde azulado'],
+          ['rose', '#B93D68', 'Rosa'],
+          ['graphite', '#34332F', 'Grafito'],
         ]
           .map(
-            ([k, c]) =>
-              `<button class="sw ${P.accent === k ? 'on' : ''}" style="--c:${c}" role="radio" aria-checked="${P.accent === k}" data-a="setPref" data-k="accent" data-v="${k}" aria-label="${k}" data-tip="${k[0].toUpperCase() + k.slice(1)}">${P.accent === k ? ic('check', 13) : ''}</button>`,
+            ([k, c, label]) =>
+              `<button class="sw ${P.accent === k ? 'on' : ''}" style="--c:${c}" role="radio" aria-checked="${P.accent === k}" data-a="setPref" data-k="accent" data-v="${k}" aria-label="${label}" data-tip="${label}">${P.accent === k ? ic('check', 13) : ''}</button>`,
           )
           .join('')}</div>`,
       )}</div>
-      <div class="sblock"><h2>Density</h2>
-        ${srow('Sidebar density', 'Compact fits more projects on screen.', `<div class="seg">${['comfortable', 'compact'].map(k => `<button class="${P.side === k ? 'on' : ''}" data-a="setPref" data-k="side" data-v="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>`)}
-        ${srow('Task display', 'Row height in lists and card padding on boards.', `<div class="seg">${['comfortable', 'compact'].map(k => `<button class="${P.density === k ? 'on' : ''}" data-a="setPref" data-k="density" data-v="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>`)}
+      <div class="sblock"><h2>Densidad</h2>
         ${srow(
-          'Motion',
-          'Reduce animations for drawers, modals, and transitions.',
+          'Barra lateral',
+          'Compacto permite ver más proyectos en pantalla.',
+          `<div class="seg">${[
+            ['comfortable', 'Cómodo'],
+            ['compact', 'Compacto'],
+          ]
+            .map(([k, l]) => `<button class="${P.side === k ? 'on' : ''}" data-a="setPref" data-k="side" data-v="${k}">${l}</button>`)
+            .join('')}</div>`,
+        )}
+        ${srow(
+          'Listas y tableros',
+          'Altura de filas y tarjetas.',
+          `<div class="seg">${[
+            ['comfortable', 'Cómodo'],
+            ['compact', 'Compacto'],
+          ]
+            .map(([k, l]) => `<button class="${P.density === k ? 'on' : ''}" data-a="setPref" data-k="density" data-v="${k}">${l}</button>`)
+            .join('')}</div>`,
+        )}
+        ${srow(
+          'Animaciones',
+          'Reduce transiciones en paneles y diálogos.',
           sel(
             'motion',
             [
-              ['system', 'Follow system'],
-              ['reduce', 'Reduce motion'],
+              ['system', 'Seguir al sistema'],
+              ['reduce', 'Reducir movimiento'],
             ],
             P.motion,
           ),
@@ -152,100 +199,97 @@ export function settingsBody(sec, title) {
       );
     case 'language':
       return (
-        H('Language and regional formats.') +
-        srow(
-          'Language',
-          'The language used throughout the interface.',
-          sel('lang', ['English (US)', 'English (UK)', 'Deutsch', 'Español', 'Français', '日本語'], P.lang),
-        ) +
-        srow('Spellcheck', 'Check spelling in descriptions and comments.', tog('spell', P.spell !== false))
+        H('Idioma y corrección ortográfica.') +
+        srow('Idioma', 'Idioma de la interfaz.', sel('lang', ['Español', 'English (US)'], P.lang)) +
+        srow('Corrector ortográfico', 'Comprobar ortografía en descripciones y notas.', tog('spell', P.spell !== false))
       );
     case 'datetime':
       return (
-        H('How dates and times appear across the workspace.') +
+        H('Formato de fechas y horas en todo el espacio.') +
         srow(
-          'Time zone',
-          'Used for due dates and reminders.',
-          sel('tz', ['(GMT-08:00) Pacific Time', '(GMT-05:00) Eastern Time', '(GMT+00:00) London', '(GMT+01:00) Berlin', '(GMT+08:00) Singapore'], P.tz),
+          'Zona horaria',
+          'Referencia para fechas límite y actividad.',
+          sel('tz', ['(GMT+01:00) Madrid', '(GMT+00:00) Londres / Canarias', '(GMT-05:00) Este', '(GMT-06:00) México / Centro'], P.tz),
         ) +
         srow(
-          'Date format',
-          `Preview: <b>${fmtDate(dOff(8))}</b>`,
+          'Formato de fecha',
+          `Vista previa: <b>${fmtDate(dOff(8))}</b>`,
           sel(
             'dateFmt',
             [
-              ['MMM d', 'Oct 1'],
               ['d/M', '1/10'],
-              ['M/d', '10/1'],
+              ['MMM d', 'Oct 1'],
               ['yyyy-MM-dd', '2026-10-01'],
             ],
             P.dateFmt,
           ),
         ) +
         srow(
-          'Start week on',
-          'Affects calendars and the timeline.',
+          'Inicio de semana',
+          'Afecta a calendario y cronograma.',
           sel(
             'weekStart',
             [
-              ['1', 'Monday'],
-              ['0', 'Sunday'],
-              ['6', 'Saturday'],
+              ['1', 'Lunes'],
+              ['0', 'Domingo'],
+              ['6', 'Sábado'],
             ],
             P.weekStart,
           ),
         ) +
         srow(
-          'Time format',
+          'Formato horario',
           '',
           sel(
             'timeFmt',
             [
-              ['12', '12-hour (2:30 PM)'],
-              ['24', '24-hour (14:30)'],
+              ['24', '24 horas (14:30)'],
+              ['12', '12 horas (2:30 PM)'],
             ],
-            P.timeFmt || '12',
+            P.timeFmt || '24',
           ),
         )
       );
     case 'members':
       return (
-        H(`${d.members.length} people have access to ${esc(d.ws.name)}.`) +
-        `<div class="row" style="margin-bottom:12px"><button class="btn btn-primary" data-a="invite">${ic('user-plus', 14)}Invite member</button><button class="btn btn-secondary" data-a="go" data-r="members">Open member directory</button></div>
-      <div class="panel" style="overflow:hidden">${d.members.map(m => `<div class="mini" style="min-height:52px;cursor:default" data-ctx="member" data-id="${m.id}">${av(m.id, 'md', false)}<div class="grow"><div style="font-weight:500">${esc(m.name)}</div><div class="faint" style="font-size:12px">${esc(m.email)}</div></div>${m.status === 'invited' ? '<span class="badge amber">Invited</span>' : ''}${m.role === 'Owner' ? `<span class="pillbtn">${ic('crown', 13)}Owner</span>` : `<button class="pillbtn bordered" data-a="pop" data-pop="role" data-id="${m.id}">${m.role}${ic('chevron-down', 12)}</button>`}<button class="ibtn ibtn-sm" data-a="ctxBtn" data-ctx="member" data-id="${m.id}" aria-label="Options">${ic('ellipsis', 14)}</button></div>`).join('')}</div>`
+        H(`${d.members.length} personas tienen acceso a ${esc(d.ws.name)}.`) +
+        `<div class="row" style="margin-bottom:12px"><button class="btn btn-primary" data-a="invite">${ic('user-plus', 14)}Invitar miembro</button><button class="btn btn-secondary" data-a="go" data-r="members">Abrir directorio</button></div>
+      <div class="panel" style="overflow:hidden">${d.members.map(m => `<div class="mini" style="min-height:52px;cursor:default" data-ctx="member" data-id="${m.id}">${av(m.id, 'md', false)}<div class="grow"><div style="font-weight:500">${esc(m.name)}</div><div class="faint" style="font-size:12px">${esc(m.email)}</div></div>${m.status === 'invited' ? '<span class="badge amber">Invitado</span>' : ''}${m.role === 'Owner' ? `<span class="pillbtn">${ic('crown', 13)}Propietario</span>` : `<button class="pillbtn bordered" data-a="pop" data-pop="role" data-id="${m.id}">${m.role}${ic('chevron-down', 12)}</button>`}<button class="ibtn ibtn-sm" data-a="ctxBtn" data-ctx="member" data-id="${m.id}" aria-label="Opciones">${ic('ellipsis', 14)}</button></div>`).join('')}</div>`
       );
     case 'teams':
-      return H('Teams group people and projects.') + teamsGrid();
+      return H('Los equipos agrupan personas y proyectos.') + teamsGrid();
     case 'projects': {
       const arch = d.projects.filter(p => p.archived);
       return (
-        H('Defaults for new projects and archived work.') +
+        H('Valores por defecto para proyectos y elementos archivados.') +
         srow(
-          'Default project view',
-          'The tab that opens when you open a project.',
+          'Vista inicial de proyecto',
+          'Pestaña que se abre por defecto al entrar en un proyecto.',
           sel(
             'defaultTab',
             [
-              ['board', 'Board'],
-              ['list', 'List'],
-              ['table', 'Table'],
-              ['overview', 'Overview'],
-              ['timeline', 'Timeline'],
+              ['auto', 'Automática según tipo (Tablero SW / Lista Ciber)'],
+              ['overview', 'Resumen'],
+              ['board', 'Tablero'],
+              ['list', 'Lista'],
+              ['table', 'Tabla'],
+              ['calendar', 'Calendario'],
+              ['timeline', 'Cronograma'],
             ],
-            P.defaultTab || 'board',
+            P.defaultTab || 'auto',
           ),
         ) +
-        srow('Show completed tasks on boards', '', tog('showDoneBoard', P.showDoneBoard !== false)) +
-        `<div class="sblock"><h2>Archived projects</h2>${arch.length ? arch.map(p => `<div class="srow"><div class="row">${pIcon(p, '', 14)}<b style="font-weight:500">${esc(p.name)}</b></div><div class="row"><button class="btn btn-secondary btn-sm" data-a="restoreProject" data-id="${p.id}">Restore</button><button class="btn btn-danger-ghost btn-sm" data-a="delProject" data-id="${p.id}">Delete</button></div></div>`).join('') : `<p class="faint" style="padding:12px 0">No archived projects. Archived projects are hidden from the sidebar but keep all their tasks.</p>`}<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" data-a="go" data-r="archive">${ic('archive', 13)}Open archive</button></div></div>`
+        srow('Mostrar tareas completadas en tableros', '', tog('showDoneBoard', P.showDoneBoard !== false)) +
+        `<div class="sblock"><h2>Proyectos archivados</h2>${arch.length ? arch.map(p => `<div class="srow"><div class="row">${pIcon(p, '', 14)}<b style="font-weight:500">${esc(p.name)}</b></div><div class="row"><button class="btn btn-secondary btn-sm" data-a="restoreProject" data-id="${p.id}">Restaurar</button><button class="btn btn-danger-ghost btn-sm" data-a="delProject" data-id="${p.id}">Eliminar</button></div></div>`).join('') : `<p class="faint" style="padding:12px 0">No hay proyectos archivados. Los proyectos archivados desaparecen de la barra lateral pero conservan sus tareas.</p>`}<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" data-a="go" data-r="archive">${ic('archive', 13)}Abrir archivo</button></div></div>`
       );
     }
     case 'permissions':
       return (
-        H('Control what each role can do.') +
-        srow('Members can create projects', '', tog('permCreate', P.permCreate !== false)) +
-        srow('Members can invite guests', 'Guests only see projects they are added to.', tog('permGuests', P.permGuests !== false)) +
-        srow('Allow public share links', 'Anyone with the link can view a project.', tog('permPublic', !!P.permPublic)) +
-        `<div class="sblock"><h2>Role permissions</h2><div style="margin-top:12px">${permsTable()}</div></div>`
+        H('Controla qué puede hacer cada rol.') +
+        srow('Miembros pueden crear proyectos', '', tog('permCreate', P.permCreate !== false)) +
+        srow('Miembros pueden invitar externos', 'Los invitados solo ven los proyectos asignados.', tog('permGuests', P.permGuests !== false)) +
+        srow('Permitir enlaces públicos', 'Cualquiera con el enlace puede ver un proyecto.', tog('permPublic', !!P.permPublic)) +
+        `<div class="sblock"><h2>Permisos por rol</h2><div style="margin-top:12px">${permsTable()}</div></div>`
       );
     case 'notif-email':
       return (
@@ -291,40 +335,32 @@ export function settingsBody(sec, title) {
     }
     case 'preferences':
       return (
-        H('Personal defaults for how you work.') +
+        H('Preferencias personales de trabajo.') +
         srow(
-          'Open on launch',
-          'The page you see when Gr8r opens.',
-          sel(
-            'home',
-            [
-              ['home', 'Home'],
-              ['mytasks', 'My Tasks'],
-              ['inbox', 'Inbox'],
-            ],
-            P.home,
-          ),
+          'Abrir al iniciar',
+          'Página inicial al entrar en la aplicación.',
+          sel('home', [['home', 'Inicio'], ['mytasks', 'Mis tareas'], ['projects', 'Proyectos'], ...(SINGLE_USER ? [] : [['inbox', 'Bandeja']])], P.home),
         ) +
         srow(
-          'Open tasks in',
-          'Side panel keeps your place in the list.',
+          'Abrir tareas en',
+          'El panel lateral mantiene el contexto de la vista actual.',
           sel(
             'openTasks',
             [
-              ['drawer', 'Side panel'],
-              ['full', 'Full page'],
+              ['drawer', 'Panel lateral'],
+              ['full', 'Página completa'],
             ],
             P.openTasks,
           ),
         ) +
-        srow('Confirm before deleting tasks', '', tog('confirmDel', P.confirmDel !== false))
+        srow('Confirmar antes de eliminar tareas', '', tog('confirmDel', P.confirmDel !== false))
       );
     case 'shortcuts':
       return (
-        H('Move faster with the keyboard.') +
+        H('Muévete más rápido con el teclado.') +
         SHORTCUTS.map(
           ([g, list]) =>
-            `<div class="sblock" style="margin-top:18px"><h2>${g}</h2>${list.map(([n, k]) => `<div class="srow" style="padding:9px 0"><span>${n}</span><span class="row" style="gap:4px">${k.map((x, i) => `${i && k[0] === 'G' ? '<span class="faint" style="font-size:11px">then</span>' : ''}<kbd>${x}</kbd>`).join('')}</span></div>`).join('')}</div>`,
+            `<div class="sblock" style="margin-top:18px"><h2>${g}</h2>${list.map(([n, k]) => `<div class="srow" style="padding:9px 0"><span>${n}</span><span class="row" style="gap:4px">${k.map((x, i) => `${i && k[0] === 'G' ? '<span class="faint" style="font-size:11px">luego</span>' : ''}<kbd>${x}</kbd>`).join('')}</span></div>`).join('')}</div>`,
         ).join('')
       );
     case 'password': {
