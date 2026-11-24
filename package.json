@@ -9,6 +9,7 @@
     "build": "vite build",
     "build:pb": "vite build --outDir pocketbase/pb_public --emptyOutDir",
     "pb": "node scripts/pb.js",
+    "mcp": "node scripts/mcp.js",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
