@@ -160,6 +160,7 @@ export const TEMPLATES = [
 export function projectModal(m, H) {
   const f = S.ui.pform;
   const err = S.ui.errors.pname;
+  const dateErr = S.ui.errors.pdate;
   return `${H(m.edit ? 'Ajustes del proyecto' : 'Nuevo proyecto', m.edit ? '' : 'Organiza tareas, hitos y seguimiento de un proyecto o servicio.')}
   <form class="modal-b" data-submit="submitProject">
     <div class="row" style="gap:10px;align-items:flex-start">
@@ -195,8 +196,10 @@ export function projectModal(m, H) {
         .map(x => `<option value="${x.id}" ${f.lead === x.id ? 'selected' : ''}>${esc(x.name)}</option>`)
         .join('')}</select></div>`
       }
-      <div class="field" style="flex:1;min-width:150px"><label class="label" for="p-due">Fecha objetivo</label><input type="date" class="input" id="p-due" data-in="pform" data-f="due" value="${f.due || ''}"></div>
+      <div class="field" style="flex:1;min-width:150px"><label class="label" for="p-start">Fecha de inicio</label><input type="date" class="input ${dateErr ? 'is-error' : ''}" id="p-start" data-in="pform" data-f="start" value="${f.start || ''}" aria-invalid="${!!dateErr}"></div>
+      <div class="field" style="flex:1;min-width:150px"><label class="label" for="p-due">Fecha objetivo</label><input type="date" class="input ${dateErr ? 'is-error' : ''}" id="p-due" data-in="pform" data-f="due" value="${f.due || ''}" aria-invalid="${!!dateErr}"></div>
     </div>
+    ${dateErr ? `<span class="err" style="margin-top:-6px">${ic('circle-alert', 12)}${dateErr}</span>` : ''}
     ${m.edit ? '' : `<div class="field"><span class="label">Plantilla</span><div class="tmpls" role="radiogroup">${TEMPLATES.map(t => `<button type="button" role="radio" aria-checked="${f.tmpl === t.id}" class="opt ${f.tmpl === t.id ? 'on' : ''}" data-a="pformSet" data-f="tmpl" data-v="${t.id}" style="padding:10px">${ic(t.icon, 16)}<b style="font-size:12.5px">${t.name}</b><span>${t.tasks.length ? `${t.tasks.length} tareas · ${t.milestones.length} hitos` : t.desc}</span></button>`).join('')}</div></div>`}
   </form>
   <div class="modal-f"><span class="sp"></span><button class="btn btn-secondary" data-a="closeModal">Cancelar</button><button class="btn btn-primary" data-a="submitProject">${m.edit ? 'Guardar cambios' : 'Crear proyecto'}</button></div>`;

@@ -38,8 +38,8 @@ export function projOverview(p) {
           <dt>${ic('layers', 14)}Tipo</dt><dd>${pTypeBadge(p.ptype)}</dd>
           <dt>${ic('circle-dot', 14)}Estado</dt><dd><button class="pillbtn" data-a="pop" data-pop="pstatus" data-id="${p.id}">${pStatus(p.status)}</button></dd>
           ${SINGLE_USER ? '' : `<dt>${ic('user', 14)}Responsable</dt><dd><span class="pillbtn">${av(p.lead, 'sm', false)}${esc(mem(p.lead)?.name)}</span></dd><dt>${ic('users', 14)}Equipo</dt><dd><button class="pillbtn" data-a="go" data-r="team" data-id="${p.team}">${ic(TM[p.team].icon, 13)}${TM[p.team].name}</button></dd>`}
-          <dt>${ic('calendar', 14)}Inicio</dt><dd><span class="pillbtn num">${fmtDate(p.start, true) || '—'}</span></dd>
-          <dt>${ic('flag', 14)}Fecha objetivo</dt><dd><span class="pillbtn num">${fmtDate(p.due, true) || '—'}</span></dd>
+          <dt>${ic('calendar', 14)}Inicio</dt><dd><button class="pillbtn num ${p.start ? '' : 'empty'}" data-a="pop" data-pop="pdate" data-field="start" data-id="${p.id}" aria-label="Editar fecha de inicio">${fmtDate(p.start, true) || 'Poner fecha'}</button></dd>
+          <dt>${ic('flag', 14)}Fecha objetivo</dt><dd><button class="pillbtn num ${p.due ? '' : 'empty'}" data-a="pop" data-pop="pdate" data-field="due" data-id="${p.id}" aria-label="Editar fecha objetivo">${fmtDate(p.due, true) || 'Poner fecha'}</button></dd>
           ${SINGLE_USER ? '' : `<dt>${ic('user-plus', 14)}Miembros</dt><dd><button class="pillbtn" data-a="share" data-id="${p.id}">${avStack(p.members, 6)}<span class="faint">${p.members.length}</span></button></dd>`}
         </dl></div></section>
         <section class="panel"><div class="panel-h"><h2>Hitos</h2><div class="acts"><button class="btn btn-sm btn-ghost" data-a="newMilestone" data-id="${p.id}">${ic('plus', 13)}Añadir hito</button></div></div><div class="panel-b">${

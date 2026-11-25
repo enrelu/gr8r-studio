@@ -288,6 +288,18 @@ A.ctxBtn = el => {
   S.ui.pop = { type: 'ctx', ctx: d.ctx, id: d.id, key: d.key, vid: d.vid, x: r.left, y: r.bottom + 4, top: r.top, w: r.width };
   render();
 };
+function logProjectDateChange(pr, field, nv) {
+  D().activity.unshift({
+    id: uid('a'),
+    by: D().me,
+    verb: field === 'start' ? 'cambió fecha de inicio del proyecto' : 'cambió fecha objetivo del proyecto',
+    task: null,
+    project: pr.id,
+    at: Date.now(),
+    extra: nv ? `a ${fmtDate(nv)}` : '(eliminada)',
+  });
+}
+
 A.popPick = el => {
   const p = S.ui.pop;
   let v = el.dataset.v;
@@ -306,6 +318,30 @@ A.popPick = el => {
         k === 'assignee' ? (v ? `a ${mem(v).name}` : '(sin asignar)') : v ? fmtDate(v) : '(eliminada)',
       );
     });
+    return;
+  }
+  if (p.type === 'pdate') {
+    const pr = proj(p.id);
+    if (!pr) return;
+    const field = p.field === 'start' ? 'start' : 'due';
+    const nv = v || null;
+    S.ui.pop = null;
+    if (field === 'start' && nv && pr.due && nv > pr.due) {
+      toast('La fecha de inicio no puede ser posterior a la fecha objetivo', { kind: 'err' });
+      render();
+      return;
+    }
+    if (field === 'due' && nv && pr.start && nv < pr.start) {
+      toast('La fecha objetivo no puede ser anterior a la fecha de inicio', { kind: 'err' });
+      render();
+      return;
+    }
+    mutate(() => {
+      if (pr[field] === nv) return;
+      pr[field] = nv;
+      logProjectDateChange(pr, field, nv);
+    });
+    toast(field === 'start' ? 'Fecha de inicio actualizada' : 'Fecha objetivo actualizada');
     return;
   }
   if (p.type === 'pstatus') {
@@ -1233,7 +1269,18 @@ A.clearProjFilters = () => {
   render();
 };
 A.newProject = () => {
-  S.ui.pform = { name: '', desc: '', icon: 'code', color: 'blue', ptype: 'software', team: me().team, lead: D().me, due: dOff(30), tmpl: 'software' };
+  S.ui.pform = {
+    name: '',
+    desc: '',
+    icon: 'code',
+    color: 'blue',
+    ptype: 'software',
+    team: me().team,
+    lead: D().me,
+    start: dOff(0),
+    due: dOff(30),
+    tmpl: 'software',
+  };
   S.ui.errors = {};
   S.ui.pop = null;
   openModal({ type: 'project' });
@@ -1249,7 +1296,8 @@ A.editProject = el => {
     ptype: p.ptype || 'software',
     team: p.team,
     lead: p.lead,
-    due: p.due,
+    start: p.start || '',
+    due: p.due || '',
     tmpl: 'blank',
   };
   S.ui.errors = {};
@@ -1260,6 +1308,13 @@ IN.pform = el => {
   if (el.dataset.f === 'name' && S.ui.errors.pname && el.value.trim()) {
     S.ui.errors.pname = null;
     render();
+  }
+  if ((el.dataset.f === 'start' || el.dataset.f === 'due') && S.ui.errors.pdate) {
+    const { start, due } = S.ui.pform;
+    if (!start || !due || start <= due) {
+      S.ui.errors.pdate = null;
+      render();
+    }
   }
 };
 A.pformSet = el => {
@@ -1304,8 +1359,8 @@ export function createProject(f, tmplId) {
     status: 'planning',
     team: f.team,
     lead: f.lead,
-    due: f.due || dOff(30),
-    start: dOff(0),
+    due: f.due !== undefined ? f.due || null : dOff(30),
+    start: f.start !== undefined ? f.start || null : dOff(0),
     fav: false,
     members: [...new Set([D().me, f.lead])],
     desc: f.desc || 'Sin descripción todavía.',
@@ -1333,16 +1388,29 @@ A.submitProject = () => {
   const f = S.ui.pform;
   f.name = ($('#p-name')?.value || '').trim();
   f.desc = $('#p-desc')?.value || '';
+  f.start = $('#p-start')?.value ?? f.start ?? '';
+  f.due = $('#p-due')?.value ?? f.due ?? '';
   if (!f.name) {
     S.ui.errors.pname = 'Escribe un nombre para el proyecto';
     render();
     $('#p-name')?.focus();
     return;
   }
+  if (f.start && f.due && f.start > f.due) {
+    S.ui.errors.pdate = 'La fecha de inicio no puede ser posterior a la fecha objetivo';
+    render();
+    $('#p-start')?.focus();
+    return;
+  }
+  S.ui.errors = {};
   if (m.edit) {
     const p = proj(m.edit);
+    const oldStart = p.start || null;
+    const oldDue = p.due || null;
+    const nextStart = f.start || null;
+    const nextDue = f.due || null;
     if (
-      mutate(() =>
+      mutate(() => {
         Object.assign(p, {
           name: f.name,
           desc: f.desc,
@@ -1351,10 +1419,13 @@ A.submitProject = () => {
           ptype: f.ptype || p.ptype || 'software',
           team: f.team,
           lead: f.lead,
-          due: f.due,
+          start: nextStart,
+          due: nextDue,
           members: [...new Set([...p.members, f.lead])],
-        }),
-      )
+        });
+        if (oldStart !== nextStart) logProjectDateChange(p, 'start', nextStart);
+        if (oldDue !== nextDue) logProjectDateChange(p, 'due', nextDue);
+      })
     ) {
       S.ui.modals.pop();
       render();
