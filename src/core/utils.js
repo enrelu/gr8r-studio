@@ -52,6 +52,7 @@ export function fmtDate(s, long) {
   const fmt = dateFormat;
   if (fmt === 'd/M') return `${d.getDate()}/${d.getMonth() + 1}${long ? '/' + d.getFullYear() : ''}`;
   if (fmt === 'M/d') return `${d.getMonth() + 1}/${d.getDate()}${long ? '/' + d.getFullYear() : ''}`;
+  if (fmt === 'dd-MM-yyyy') return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
   if (fmt === 'yyyy-MM-dd') return iso(d);
   return `${d.getDate()} ${MON[d.getMonth()]}${long || d.getFullYear() !== TODAY.getFullYear() ? ' ' + d.getFullYear() : ''}`;
 }

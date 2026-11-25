@@ -218,6 +218,7 @@ export function settingsBody(sec, title) {
             'dateFmt',
             [
               ['d/M', '1/10'],
+              ['dd-MM-yyyy', '01-10-2026'],
               ['MMM d', 'Oct 1'],
               ['yyyy-MM-dd', '2026-10-01'],
             ],
